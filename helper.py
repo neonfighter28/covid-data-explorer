@@ -40,7 +40,7 @@ def save_to_file(name, data):
 def read_from_file(name):
     with open(f"assets/{name}.dat", "rb") as file:
         return pickle.load(file)
-    
+
 def get_data():
     try:
         confirmed_df = read_from_file("confirmed_df")
