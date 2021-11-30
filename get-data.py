@@ -111,25 +111,25 @@ X_train_confirmed, X_test_confirmed, y_train_confirmed, y_test_confirmed = train
 # Create Data Structures
 def_mob_data_dict = {}
 
-class MobilityData:
+class MobilityDataXY:
     def __init__(self):
         self.data = None
         self.x = None
         self.y = None
 
 class AppleMobilityDataCountry:
-    def __init__(self):
+    def __init__(self, data):
         self.transit_data = None
         self.walking_data = None
         self.driving_data = None
+        self.data = data
 
     class MobilityData:
-        def __init__(self, geo_type, region, transportation_type, alternative_name, sub_region, country, data, index):
+        def __init__(self, geo_type, region, transportation_type, alternative_name, country, data, index):
             self.geo_type = geo_type
             self.region = region
             self.transportation_type = transportation_type
             self.alternative_name = alternative_name
-            self.sub_region = sub_region
             self.country = country
             self.data = data
             self.index = index
@@ -140,17 +140,25 @@ class AppleMobilityDataCountry:
         geo_type = apple_mobility.geo_type[self.index]
         transportation_type = apple_mobility.transportation_type[self.index]
         alternative_name = apple_mobility.alternative_name[self.index]
-        sub_region = apple_mobility.sub_region[self.index]
+        # sub_region = apple_mobility.sub_region[self.index]
+        data = self.data
+        index = self.index
 
         match transportation_type:
-            case ["walking"]:
-                self.walking_data = MobilityData(region, geo_type, transportation_type, alternative_name, sub_region, country, data, index)
-                MobilityData.transportation_type = "walking"
-                MobilityData.region = region
-                
+            case "walking":
+                self.walking_data = self.MobilityData(geo_type, region, transportation_type, alternative_name, country, data, index)
+
+            case "transit":
+                self.transit_data = self.MobilityData(geo_type, region, transportation_type, alternative_name, country, data, index)
+
+            case "driving":
+                self.driving_data = self.MobilityData(geo_type, region, transportation_type, alternative_name, country, data, index)
+
+            case _:
+                raise ValueError
 
 
-mob_data = AppleMobilityDataCountry()
+mob_data = AppleMobilityDataCountry(apple_mobility)
 
 try:
     for i, key in enumerate(apple_mobility):
@@ -163,6 +171,7 @@ for i, v in enumerate(apple_mobility.region):
     if v.upper() == country.upper():
         print("yas queen")
         mob_data.index = i
+        index = i
 
 mob_data.get_data_rows_from_index()
 
@@ -174,7 +183,7 @@ try:
         for k, v in mob_data_dict.items():
             mob_data_dict[k] = apple_mobility.loc[index + 2][k]
         datasets.append(mob_data_dict)
-        print(datasets)
+        #print(datasets)
 except KeyError:
     pass
 
@@ -183,6 +192,7 @@ x, y = [], []
 i = -1
 
 datasets_as_xy = []
+"""
 for dataset in datasets:
     temp = []
     for k, v in dataset.items():
@@ -193,17 +203,29 @@ for dataset in datasets:
     temp.append(x)
     temp.append(y)
     datasets_as_xy.append(temp)
+"""
+dataset = datasets[0]
+for k, v in dataset.items():
+        i+=1
+        if i < 6:
+            continue
+        x.append(k); y.append(v)
 
+#print(datasets_as_xy[0][1])
 adjusted_dates = adjusted_dates.reshape(1, -1)[0]
 plt.figure(figsize=(16, 10))
-plt.plot(datasets_as_xy[0][0], datasets_as_xy[0][1], color="blue")
-plt.plot(datasets_as_xy[1][0], color="orange")
-plt.plot(datasets_as_xy[2][0], color="green")
+
+#x = datasets_as_xy[0][1]
+#y = datasets_as_xy[0][1]
+
+plt.plot(x,y)
+#plt.plot(datasets_as_xy[1][0], color="orange")
+#plt.plot(datasets_as_xy[2][0], color="green")
 
 plt.xlabel('Days Since 1/22/2020', size=15)
 plt.ylabel(' Increase of traffic routing requests in %, baseline at 100', size = 20)
-plt.xticks(size=10, rotation=90, ticks=[1,50,100, 150, 200, 250, 300, 350, 400, 450, 500, 550, 600, 650, 700])
-plt.yticks(size=30)
+plt.xticks(size=10, rotation=90, ticks=[1, 50, 100, 150, 200, 250, 300, 350, 400, 450, 500, 550, 600, 650, 700])
+plt.yticks(size=10)
 plt.grid()
 plt.legend(["Worldwide traffic requests"], loc=9)
 plt.show()
