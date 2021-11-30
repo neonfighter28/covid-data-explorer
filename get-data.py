@@ -4,9 +4,9 @@ If parameter isn't specified, switzerland will be used
 
 Goals:
 Plot containing 4 lines:
-1. Traffic Data of country -> walking
-2. Traffic Data of country -> driving
-3. Traffic Data of country -> transit
+1. Traffic Data of country -> walking | DONE
+2. Traffic Data of country -> driving | DONE
+3. Traffic Data of country -> transit | DONE
 4. COVID Data of country
 5. New dataset on whether there was a lockdown or not
 
@@ -82,8 +82,6 @@ world_daily_death_avg = moving_average(world_daily_death, window)
 # active
 # world_active_avg = moving_average(total_active, window)
 
-
-
 days_since_1_22 = np.array([i for i in range(len(dates))]).reshape(-1, 1)
 world_cases = np.array(world_cases).reshape(-1, 1)
 total_deaths = np.array(total_deaths).reshape(-1, 1)
@@ -99,8 +97,6 @@ future_forcast_dates = []
 for i in range(len(future_forcast)):
     future_forcast_dates.append((start_date + datetime.timedelta(days=i)).strftime('%m/%d/%Y'))
 
-
-
 # slightly modify the data to fit the model better (regression models cannot pick the pattern)
 days_to_skip = 376
 X_train_confirmed, X_test_confirmed, y_train_confirmed, y_test_confirmed = train_test_split(days_since_1_22[days_to_skip:], world_cases[days_to_skip:], test_size=0.08, shuffle=False)
@@ -109,81 +105,29 @@ X_train_confirmed, X_test_confirmed, y_train_confirmed, y_test_confirmed = train
 # to dict
 
 # Create Data Structures
-def_mob_data_dict = {}
-
-class MobilityDataXY:
-    def __init__(self):
-        self.data = None
-        self.x = None
-        self.y = None
-
-class AppleMobilityDataCountry:
-    def __init__(self, data):
-        self.transit_data = None
-        self.walking_data = None
-        self.driving_data = None
-        self.data = data
-
-    class MobilityData:
-        def __init__(self, geo_type, region, transportation_type, alternative_name, country, data, index):
-            self.geo_type = geo_type
-            self.region = region
-            self.transportation_type = transportation_type
-            self.alternative_name = alternative_name
-            self.country = country
-            self.data = data
-            self.index = index
-
-
-    def get_data_rows_from_index(self):
-        region = apple_mobility.region[self.index]
-        geo_type = apple_mobility.geo_type[self.index]
-        transportation_type = apple_mobility.transportation_type[self.index]
-        alternative_name = apple_mobility.alternative_name[self.index]
-        # sub_region = apple_mobility.sub_region[self.index]
-        data = self.data
-        index = self.index
-
-        match transportation_type:
-            case "walking":
-                self.walking_data = self.MobilityData(geo_type, region, transportation_type, alternative_name, country, data, index)
-
-            case "transit":
-                self.transit_data = self.MobilityData(geo_type, region, transportation_type, alternative_name, country, data, index)
-
-            case "driving":
-                self.driving_data = self.MobilityData(geo_type, region, transportation_type, alternative_name, country, data, index)
-
-            case _:
-                raise ValueError
-
-
-mob_data = AppleMobilityDataCountry(apple_mobility)
+default_mob_data_dict = {}
 
 try:
     for i, key in enumerate(apple_mobility):
-        def_mob_data_dict[key] = []
+        default_mob_data_dict[key] = []
 except KeyError:
     pass
 
+index = []
 # Get corresponding data rows for country:
 for i, v in enumerate(apple_mobility.region):
     if v.upper() == country.upper():
-        print("yas queen")
-        mob_data.index = i
-        index = i
-
-mob_data.get_data_rows_from_index()
+        index.append(i)
 
 datasets = []
 # Add Values to data structure
 try:
-    for i in range(3):
-        mob_data_dict = def_mob_data_dict
+    for i in index:
+        mob_data_dict = default_mob_data_dict.copy()
         for k, v in mob_data_dict.items():
-            mob_data_dict[k] = apple_mobility.loc[index + 2][k]
+            mob_data_dict[k] = apple_mobility.loc[i][k]
         datasets.append(mob_data_dict)
-        #print(datasets)
+
 except KeyError:
     pass
 
@@ -192,44 +136,61 @@ x, y = [], []
 i = -1
 
 datasets_as_xy = []
-"""
+prev_dataset = None
 for dataset in datasets:
+    i= 0
     temp = []
+    temp2 = []
     for k, v in dataset.items():
         i+=1
-        if i < 6:
+        temp = []
+        if i < 7:
             continue
-        x.append(k); y.append(v)
-    temp.append(x)
-    temp.append(y)
-    datasets_as_xy.append(temp)
-"""
-dataset = datasets[0]
-for k, v in dataset.items():
-        i+=1
-        if i < 6:
-            continue
-        x.append(k); y.append(v)
+        else:
+            temp.append(k)
+            temp.append(v)
+        temp2.append(temp)
+    datasets_as_xy.append(temp2)
 
-#print(datasets_as_xy[0][1])
 adjusted_dates = adjusted_dates.reshape(1, -1)[0]
 plt.figure(figsize=(16, 10))
 
-#x = datasets_as_xy[0][1]
-#y = datasets_as_xy[0][1]
+ax = plt.gca()
+ax2 = ax.twinx()
 
-plt.plot(x,y)
-#plt.plot(datasets_as_xy[1][0], color="orange")
-#plt.plot(datasets_as_xy[2][0], color="green")
+for z, value in enumerate(datasets_as_xy):
+    data_x = []
+    data_y = []
+    for i in value:
+        data_x.append(i[0])
+        data_y.append(i[1])
+
+    match z:
+        case 0:
+            ax.plot(data_x, data_y, color="#FE9402", label="Driving")
+        case 1:
+            ax.plot(data_x, data_y, color="#FE2D55", label="Transit")
+        case 2:
+            ax.plot(data_x, data_y, color="#AF51DE", label="Walking")
+        case _:
+            ax.plot(data_x, data_y, color="black")
+
+plt.legend(["driving", "transit", "walking"])
+
+ax2.set_ylim(ymax=1000000)
+ax2.plot(data_x[2:], world_daily_increase, color="salmon", label="Daily Incidence")
+ax2.plot(data_x[2:], world_daily_increase_avg, color="red", label="Daily Incidence, normalized")
+ax.legend()
+ax2.legend()
+ax2.set_ylabel('COVID19 Cases Worldwide')
 
 plt.xlabel('Days Since 1/22/2020', size=15)
-plt.ylabel(' Increase of traffic routing requests in %, baseline at 100', size = 20)
+ax.set_ylabel(' Increase of traffic routing requests in %, baseline at 100', size = 20)
 plt.xticks(size=10, rotation=90, ticks=[1, 50, 100, 150, 200, 250, 300, 350, 400, 450, 500, 550, 600, 650, 700])
-plt.yticks(size=10)
+plt.yticks(size=10, rotation=90)
 plt.grid()
-plt.legend(["Worldwide traffic requests"], loc=9)
+#plt.legend([f"Traffic requests for {country}"], loc=9)
 plt.show()
-
 
 exit(1)
 

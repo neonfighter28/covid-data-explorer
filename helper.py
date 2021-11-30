@@ -7,6 +7,7 @@ import time
 
 import matplotlib.colors as mcolors
 import matplotlib.pyplot as plt
+import matplotlib.dates as mdates
 import numpy as np
 import pandas as pd
 from sklearn.linear_model import BayesianRidge, LinearRegression
@@ -82,3 +83,4 @@ def moving_average(data, window_size):
         else:
             moving_average.append(np.mean(data[i:len(data)]))
     return moving_average
+
