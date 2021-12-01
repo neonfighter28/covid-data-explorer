@@ -49,6 +49,7 @@ def get_data():
         latest_data = read_from_file("latest_data")
         us_medical_data = read_from_file("us_medical_data")
         apple_mobility = read_from_file("apple_mobility")
+        #raise FileNotFoundError
 
     except FileNotFoundError:
         confirmed_df = pd.read_csv('https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_confirmed_global.csv').replace("sub-region", "sub_region", inplace=True)
@@ -58,6 +59,7 @@ def get_data():
         us_medical_data = pd.read_csv('https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_daily_reports_us/11-21-2021.csv')
         apple_mobility = pd.read_csv("https://covid19-static.cdn-apple.com/covid19-mobility-data/2202HotfixDev21/v3/en-us/applemobilitytrends-2021-11-21.csv")
 
+        print(confirmed_df)
         save_to_file("confirmed_df", confirmed_df)
         save_to_file("deaths_df", deaths_df)
         save_to_file("latest_data", latest_data)
@@ -84,3 +86,52 @@ def moving_average(data, window_size):
             moving_average.append(np.mean(data[i:len(data)]))
     return moving_average
 
+def prep_apple_mobility_data(apple_mobility, country) -> list[int, int]:
+    default_mob_data_dict = {}
+
+    try:
+        for i, key in enumerate(apple_mobility):
+            default_mob_data_dict[key] = []
+    except KeyError:
+        pass
+
+    index = []
+    # Get corresponding data rows for country:
+    for i, v in enumerate(apple_mobility.region):
+        if v.upper() == country.upper():
+            index.append(i)
+
+    datasets = []
+    # Add Values to data structure
+    try:
+        for i in index:
+            mob_data_dict = default_mob_data_dict.copy()
+            for k, v in mob_data_dict.items():
+                mob_data_dict[k] = apple_mobility.loc[i][k]
+            datasets.append(mob_data_dict)
+
+    except KeyError:
+        pass
+
+    # Values to x and y axis
+    x, y = [], []
+    i = -1
+
+    datasets_as_xy = []
+    prev_dataset = None
+    for dataset in datasets:
+        i= 0
+        temp = []
+        temp2 = []
+        for k, v in dataset.items():
+            i+=1
+            temp = []
+            if i < 7:
+                continue
+            else:
+                temp.append(k)
+                temp.append(v)
+            temp2.append(temp)
+        datasets_as_xy.append(temp2)
+
+    return datasets_as_xy
