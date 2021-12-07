@@ -17,6 +17,7 @@ from sklearn.preprocessing import PolynomialFeatures
 from sklearn.svm import SVR
 from sys import argv
 from helper import *
+from scipy.stats.stats import pearsonr
 
 plt.style.use('seaborn-poster')
 from IPython.display import set_matplotlib_formats
@@ -45,28 +46,18 @@ def read_from_file(name):
 def get_data():
     try:
         confirmed_df = read_from_file("confirmed_df")
-        deaths_df = read_from_file("deaths_df")
-        latest_data = read_from_file("latest_data")
-        us_medical_data = read_from_file("us_medical_data")
         apple_mobility = read_from_file("apple_mobility")
         #raise FileNotFoundError
 
     except FileNotFoundError:
         confirmed_df = pd.read_csv('https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_confirmed_global.csv').replace("sub-region", "sub_region", inplace=True)
-        deaths_df = pd.read_csv('https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_deaths_global.csv')
-        # recoveries_df = pd.read_csv('https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_recovered_global.csv')
-        latest_data = pd.read_csv('https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_daily_reports/11-21-2021.csv')
-        us_medical_data = pd.read_csv('https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_daily_reports_us/11-21-2021.csv')
-        apple_mobility = pd.read_csv("https://covid19-static.cdn-apple.com/covid19-mobility-data/2202HotfixDev21/v3/en-us/applemobilitytrends-2021-11-21.csv")
+        apple_mobility = pd.read_csv("https://covid19-static.cdn-apple.com/covid19-mobility-data/2203HotfixDev12/v3/en-us/applemobilitytrends-2021-12-05.csv")
 
         print(confirmed_df)
         save_to_file("confirmed_df", confirmed_df)
-        save_to_file("deaths_df", deaths_df)
-        save_to_file("latest_data", latest_data)
-        save_to_file("us_medical_data", us_medical_data)
         save_to_file("apple_mobility", apple_mobility)
 
-    return confirmed_df, deaths_df, latest_data, us_medical_data, apple_mobility
+    return confirmed_df, apple_mobility
 
 def daily_increase(data):
     d = []
@@ -87,6 +78,7 @@ def moving_average(data, window_size):
     return moving_average
 
 def prep_apple_mobility_data(apple_mobility, country) -> list[int, int]:
+
     default_mob_data_dict = {}
 
     try:
@@ -95,16 +87,16 @@ def prep_apple_mobility_data(apple_mobility, country) -> list[int, int]:
     except KeyError:
         pass
 
-    index = []
+    indexes_of_datarows = []
     # Get corresponding data rows for country:
     for i, v in enumerate(apple_mobility.region):
         if v.upper() == country.upper():
-            index.append(i)
+            indexes_of_datarows.append(i)
 
     datasets = []
     # Add Values to data structure
     try:
-        for i in index:
+        for i in indexes_of_datarows:
             mob_data_dict = default_mob_data_dict.copy()
             for k, v in mob_data_dict.items():
                 mob_data_dict[k] = apple_mobility.loc[i][k]
@@ -115,13 +107,11 @@ def prep_apple_mobility_data(apple_mobility, country) -> list[int, int]:
 
     # Values to x and y axis
     x, y = [], []
-    i = -1
 
     datasets_as_xy = []
     prev_dataset = None
     for dataset in datasets:
         i= 0
-        temp = []
         temp2 = []
         for k, v in dataset.items():
             i+=1
@@ -135,3 +125,8 @@ def prep_apple_mobility_data(apple_mobility, country) -> list[int, int]:
         datasets_as_xy.append(temp2)
 
     return datasets_as_xy
+
+def interp_nans(x:[float],left=None, right=None, period=None)->[float]:
+    xp = [i for i, yi in enumerate(x) if np.isfinite(yi)]
+    fp = [yi for i, yi in enumerate(x) if np.isfinite(yi)]
+    return list(np.interp(x=list(range(len(x))), xp=xp, fp=fp,left=left,right=right,period=period))
