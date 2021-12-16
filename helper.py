@@ -62,10 +62,10 @@ def get_data():
 def daily_increase(data):
     d = []
     for i in range(len(data)):
-        if i == 0:
-            d.append(data[0])
-        else:
-            d.append(data[i]-data[i-1])
+        match i:
+            case 0: return data
+            case _:
+                d.append(data[i]-data[i-1])
     return d
 
 def moving_average(data, window_size):
@@ -95,33 +95,20 @@ def prep_apple_mobility_data(apple_mobility, country) -> list[int, int]:
 
     datasets = []
     # Add Values to data structure
-    try:
-        for i in indexes_of_datarows:
-            mob_data_dict = default_mob_data_dict.copy()
-            for k, v in mob_data_dict.items():
-                mob_data_dict[k] = apple_mobility.loc[i][k]
-            datasets.append(mob_data_dict)
 
-    except KeyError:
-        pass
-
-    # Values to x and y axis
-    x, y = [], []
+    for i in indexes_of_datarows:
+        mob_data_dict = default_mob_data_dict.copy()
+        for k, v in mob_data_dict.items():
+            mob_data_dict[k] = apple_mobility.loc[i][k]
+        datasets.append(mob_data_dict)
 
     datasets_as_xy = []
-    prev_dataset = None
     for dataset in datasets:
-        i= 0
         temp2 = []
-        for k, v in dataset.items():
-            i+=1
-            temp = []
-            if i < 7:
+        for index, (k, v) in enumerate(dataset.items()):
+            if index < 6:
                 continue
-            else:
-                temp.append(k)
-                temp.append(v)
-            temp2.append(temp)
+            temp2.append(list((k, v)))
         datasets_as_xy.append(temp2)
 
     return datasets_as_xy
