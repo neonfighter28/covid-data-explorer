@@ -17,15 +17,25 @@ Plot containing 4 lines:
 
     -> different levels of lockdowns?
     - mask mandate
-    - 
+    -
 
 Traffic Data needs to be normalized, to account for weekends/days off
 
 -> Predict COVID Data for the next 2 weeks
 -> Predict traffic Data for the next 2 weeks
 """
+import datetime
+import time
+from sys import argv
+
+import matplotlib.pyplot as plt
+import numpy as np
+from scipy.stats.stats import pearsonr
+from sklearn.model_selection import train_test_split
 
 from helper import *
+
+timestart = time.perf_counter()
 
 try:
     country = argv[1]
@@ -73,38 +83,41 @@ for i in range(len(future_forecast)):
 
 # slightly modify the data to fit the model better (regression models cannot pick the pattern)
 days_to_skip = 500
-X_train_confirmed, X_test_confirmed, y_train_confirmed, y_test_confirmed = train_test_split(days_since_1_22[days_to_skip:], world_cases[days_to_skip:], test_size=0.08, shuffle=False)
+X_train_confirmed, X_test_confirmed, y_train_confirmed, y_test_confirmed = train_test_split(
+    days_since_1_22[days_to_skip:],
+    world_cases[days_to_skip:],
+    test_size=0.08,
+    shuffle=False
+    )
 
 # Get Covid data for country
-
-def_data = {}
+timestart = time.perf_counter()
 
 try:
     for index, value in enumerate(confirmed_df.loc):
         if confirmed_df.loc[index]["Country/Region"].upper() == country.upper():
-            c_index = index
-
+            continue
 except KeyError:
     pass
 
+def_data = {}
 try:
     for key in confirmed_df:
         def_data[key] = []
 
     for k, v in def_data.items():
-        def_data[k] = confirmed_df.loc[c_index][k]
+        def_data[k] = confirmed_df.loc[index][k]
 except KeyError:
     pass
 
 new_data_def = def_data.copy()
 
-# Convert total cases each day to daily incidence
-lst = [1000]
+# Convert total cases each day to daily incidence-
+lst = [0]
 k_minus_1 = 0
 for index, (k, v) in enumerate(def_data.items()):
     if index < 5:
-        new_data_def[k]=v
-        continue
+        new_data_def[k] = v
     else:
         new_data_def[k] = v - k_minus_1
         lst.append(v-k_minus_1)
@@ -123,12 +136,8 @@ ax2 = ax.twinx()
 data_rows = []
 
 for z, value in enumerate(datasets_as_xy):
-    data_x = []
-    data_y = []
-    for i in value:
-        data_x.append(i[0])
-        data_y.append(i[1])
-    data_y = interp_nans(data_y)
+    data_x = [i[0] for i in value]
+    data_y = interp_nans([i[1] for i in value])
     data_rows.append(moving_average(data_y, 7))
 
     match z:
@@ -144,7 +153,12 @@ for z, value in enumerate(datasets_as_xy):
 avg_traffic_data = moving_average([sum(e)/len(e) for e in zip(*data_rows)], 7)
 ax.plot(data_x, avg_traffic_data, color="green", label="Average mobility data")
 
-ax2.plot(data_x[2:], moving_average(lst, 7), color="blue", label=f"Incidence {country}, moving average")
+ax2.plot(
+    data_x[2:],
+    moving_average(lst, 7),
+    color="blue",
+    label=f"Incidence {country}, moving average"
+    )
 ax2.set_ylim(ymax=max(lst))
 #ax2.plot(data_x[2:], world_daily_increase, color="salmon", label="Daily Incidence")
 #ax2.plot(data_x[2:], world_daily_increase_avg, color="red", label="Daily Incidence, normalized")
@@ -155,13 +169,7 @@ plt.yticks(size=10)
 plt.grid()
 #print(avg_traffic_data[2:], moving_average(lst,7))
 
-def normalize(data):
-    ndata = []
-    for i in data:
-        ndata.append(i/max(interp_nans(data)))
-    return ndata
 # Calculate pearson const.
-
 n_traffic_data = normalize(moving_average(avg_traffic_data, 50))
 n_daily_incidence = normalize(moving_average(lst, 50))
 
@@ -177,4 +185,6 @@ if country.lower() =="switzerland":
     ax.legend()
 ax2.legend()
 #plt.legend([f"Traffic requests for {country}"], loc=9)
+print(time.perf_counter() - timestart)
+#exit(1)
 plt.show()

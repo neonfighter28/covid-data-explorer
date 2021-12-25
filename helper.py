@@ -1,39 +1,25 @@
-import datetime
-import math
-import operator
 import pickle
-import random
-import time
+import warnings
 
-import matplotlib.colors as mcolors
 import matplotlib.pyplot as plt
-import matplotlib.dates as mdates
 import numpy as np
 import pandas as pd
-from sklearn.linear_model import BayesianRidge, LinearRegression
-from sklearn.metrics import mean_absolute_error, mean_squared_error
-from sklearn.model_selection import RandomizedSearchCV, train_test_split
-from sklearn.preprocessing import PolynomialFeatures
-from sklearn.svm import SVR
-from sys import argv
-from helper import *
-from scipy.stats.stats import pearsonr
-
-plt.style.use('seaborn-poster')
 from IPython.display import set_matplotlib_formats
 
+plt.style.use('seaborn-poster')
+
 set_matplotlib_formats('retina')
-import warnings
 
 warnings.filterwarnings("ignore")
 
+__all__ = ["flatten", "get_data", "normalize", "daily_increase", "moving_average", "prep_apple_mobility_data", "interp_nans"]
+
 # helper method for flattening the data, so it can be displayed on a bar graph
 def flatten(arr):
-    a = []
-    arr = arr.tolist()
-    for i in arr:
-        a.append(i[0])
-    return a
+    return [i[0] for i in arr.tolist()]
+
+def normalize(data):
+    return [i/max(interp_nans(data)) for i in data]
 
 def save_to_file(name, data):
     with open(f"assets/{name}.dat", "wb") as file:
@@ -50,8 +36,9 @@ def get_data():
         #raise FileNotFoundError
 
     except FileNotFoundError:
+        # SOURCE https://www.thelancet.com/journals/laninf/article/PIIS1473-3099(20)30120-1/fulltext
         confirmed_df = pd.read_csv('https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_confirmed_global.csv').replace("sub-region", "sub_region", inplace=True)
-        apple_mobility = pd.read_csv("https://covid19-static.cdn-apple.com/covid19-mobility-data/2203HotfixDev12/v3/en-us/applemobilitytrends-2021-12-05.csv")
+        apple_mobility = pd.read_csv("https://covid19-static.cdn-apple.com/covid19-mobility-data/2204HotfixDev22/v3/en-us/applemobilitytrends-2021-12-23.csv")
 
         print(confirmed_df)
         save_to_file("confirmed_df", confirmed_df)
@@ -60,60 +47,42 @@ def get_data():
     return confirmed_df, apple_mobility
 
 def daily_increase(data):
-    d = []
-    for i in range(len(data)):
-        match i:
-            case 0: return data
-            case _:
-                d.append(data[i]-data[i-1])
-    return d
+    return [data if i ==0 else data[i]-data[i-1] for i in range(len(data))]
 
 def moving_average(data, window_size):
-    moving_average = []
-    for i in range(len(data)):
-        if i + window_size < len(data):
-            moving_average.append(np.mean(data[i:i+window_size]))
-        else:
-            moving_average.append(np.mean(data[i:len(data)]))
-    return moving_average
+    return [np.mean(data[i:i+window_size]) if i + window_size < len(data) else np.mean(data[i:len(data)]) for i in range(len(data))]
 
 def prep_apple_mobility_data(apple_mobility, country) -> list[int, int]:
 
-    default_mob_data_dict = {}
-
     try:
+        default_mob_data_dict = {}
         for i, key in enumerate(apple_mobility):
             default_mob_data_dict[key] = []
     except KeyError:
         pass
 
-    indexes_of_datarows = []
     # Get corresponding data rows for country:
-    for i, v in enumerate(apple_mobility.region):
-        if v.upper() == country.upper():
-            indexes_of_datarows.append(i)
+    indexes_of_datarows = [i for i, v in enumerate(apple_mobility.region) if v.upper() == country.upper()]
 
     datasets = []
-    # Add Values to data structure
 
+    # Add Values to data structure
     for i in indexes_of_datarows:
         mob_data_dict = default_mob_data_dict.copy()
-        for k, v in mob_data_dict.items():
+        for k, _ in mob_data_dict.items():
             mob_data_dict[k] = apple_mobility.loc[i][k]
         datasets.append(mob_data_dict)
 
-    datasets_as_xy = []
-    for dataset in datasets:
-        temp2 = []
-        for index, (k, v) in enumerate(dataset.items()):
-            if index < 6:
-                continue
-            temp2.append(list((k, v)))
-        datasets_as_xy.append(temp2)
+    return [([(k, v) for index, (k, v) in enumerate(dataset.items()) if index > 5]) for dataset in datasets]
 
-    return datasets_as_xy
-
-def interp_nans(x:[float],left=None, right=None, period=None)->[float]:
-    xp = [i for i, yi in enumerate(x) if np.isfinite(yi)]
-    fp = [yi for i, yi in enumerate(x) if np.isfinite(yi)]
-    return list(np.interp(x=list(range(len(x))), xp=xp, fp=fp,left=left,right=right,period=period))
+def interp_nans(x:[float],left=None, right=None, period=None)->[float]: # pylint: disable=invalid-name
+    return list(
+        np.interp(
+            x=list(range(len(x))),
+            xp=[i for i, yi in enumerate(x) if np.isfinite(yi)],
+            fp=[yi for i, yi in enumerate(x) if np.isfinite(yi)],
+            left=left,
+            right=right,
+            period=period
+            )
+        )
