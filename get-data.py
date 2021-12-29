@@ -25,15 +25,138 @@ Traffic Data needs to be normalized, to account for weekends/days off
 -> Predict traffic Data for the next 2 weeks
 """
 import datetime
+import logging
+import pickle
 import time
+import warnings
+from pprint import pprint
 from sys import argv
 
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
+from IPython.display import set_matplotlib_formats
 from scipy.stats.stats import pearsonr
 from sklearn.model_selection import train_test_split
+from tqdm import tqdm
 
-from helper import *
+
+class HelperMethods:
+    def flatten():
+        pass
+
+plt.style.use('seaborn-poster')
+
+logger = logging.getLogger(__name__)
+logger.setLevel(level=logging.DEBUG)
+fh = logging.StreamHandler()
+fh_formatter = logging.Formatter(
+    '%(asctime)s %(levelname)s %(lineno)d: - %(message)s')
+fh.setFormatter(fh_formatter)
+logger.addHandler(fh)
+
+# helper method for flattening the data, so it can be displayed on a bar graph
+
+
+def flatten(arr):
+    return [i[0] for i in arr.tolist()]
+
+
+def average(num):
+    return sum(num) / len(num)
+
+
+def normalize(data):
+    return [i/max(interp_nans(data)) for i in data]
+
+
+def save_to_file(name, data):
+    with open(f"assets/{name}.dat", "wb") as file:
+        pickle.dump(data, file)
+
+
+def read_from_file(name):
+    with open(f"assets/{name}.dat", "rb") as file:
+        return pickle.load(file)
+
+def get_data(cache):
+    try:
+        if not cache:
+            raise FileNotFoundError
+        logger.debug("%s", "reading from cache...")
+        confirmed_df = read_from_file("confirmed_df")
+        apple_mobility = read_from_file("apple_mobility")
+
+    except FileNotFoundError:
+        from tqdm import tqdm
+
+        # SOURCE https://www.thelancet.com/journals/laninf/article/PIIS1473-3099(20)30120-1/fulltext
+        logger.debug("%s", "Pulling data...")
+        for i in tqdm(range(0, 2), desc="Loading data.."):
+            confirmed_df = pd.read_csv(
+                'https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_confirmed_global.csv')
+            apple_mobility = pd.read_csv(get_current_apple_url())
+        logger.debug("%s", "------Loading is completed ------")
+
+        save_to_file("confirmed_df", confirmed_df)
+        save_to_file("apple_mobility", apple_mobility)
+        logger.debug("%s", "saved to cache!")
+
+    return confirmed_df, apple_mobility
+
+
+def daily_increase(data):
+    return [data if i == 0 else data[i]-data[i-1] for i in range(len(data))]
+
+
+def moving_average(data, window_size=7):
+    return [np.mean(data[i:i+window_size]) if i + window_size < len(data) else np.mean(data[i:len(data)]) for i in range(len(data))]
+
+
+def prep_apple_mobility_data(apple_mobility, country) -> list[int, int]:
+
+    try:
+        default_mob_data_dict = {}
+        for i, key in enumerate(apple_mobility):
+            default_mob_data_dict[key] = []
+    except KeyError:
+        pass
+
+    # Get corresponding data rows for country:
+    indexes_of_datarows = [i for i, v in enumerate(
+        apple_mobility.region) if v.upper() == country.upper()]
+
+    datasets = []
+
+    # Add Values to data structure
+    for i in indexes_of_datarows:
+        mob_data_dict = default_mob_data_dict.copy()
+        for k, _ in mob_data_dict.items():
+            mob_data_dict[k] = apple_mobility.loc[i][k]
+        datasets.append(mob_data_dict)
+
+    return [([(k, v) for index, (k, v) in enumerate(dataset.items()) if index > 5]) for dataset in datasets]
+
+
+def interp_nans(x: [float], left=None, right=None, period=None) -> [float]:  # pylint: disable=invalid-name
+    return list(
+        np.interp(
+            x=list(range(len(x))),
+            xp=[i for i, yi in enumerate(x) if np.isfinite(yi)],
+            fp=[yi for i, yi in enumerate(x) if np.isfinite(yi)],
+            left=left,
+            right=right,
+            period=period
+        )
+    )
+
+
+def get_current_apple_url():
+    import requests
+    response = requests.get(
+        "https://covid19-static.cdn-apple.com/covid19-mobility-data/current/v3/index.json").json()
+    return "https://covid19-static.cdn-apple.com/" + response['basePath'] + response['regions']['en-us']['csvPath']
+
 
 timestart = time.perf_counter()
 
