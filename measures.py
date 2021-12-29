@@ -33,8 +33,6 @@ class Measure:
         self.start_end_dates = self.StartEndDatePair(start_date, end_date)
         self.tags = tags
 
-
-
     class StartEndDatePair():
         def __init__(self, start_dates, end_dates):
             self.all_start_dates = []
