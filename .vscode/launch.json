@@ -9,9 +9,9 @@
             "name": "Python: Current File",
             "type": "python",
             "request": "launch",
-            "program": "${file}",
+            "program": "get-data.py",
             "console": "integratedTerminal",
-            "args": ["switzerland"],
+            "args": ["switzerland", "True"],
         }
     ]
 }
