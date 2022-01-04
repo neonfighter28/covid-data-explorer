@@ -67,7 +67,8 @@ class Helper:
     pass
 
     def flatten(arr):
-    # helper method for flattening the data, so it can be displayed on a bar graph
+        # helper method for flattening the data,
+        # so it can be displayed on a bar graph
         return [i[0] for i in arr.tolist()]
 
     def average(num):
@@ -81,15 +82,15 @@ class Helper:
             logger.debug("%s", f"Saving to file {file.name}")
             pickle.dump(data, file)
 
-
     def read_from_file(name):
         with open(f"assets/{name}.dat", "rb") as file:
             logger.debug("%s", f"Reading from file {file.name}")
             return pickle.load(file)
+
+
 class Main:
     def __init__(self):
         pass
-
 
 
 def get_data(cache):
@@ -102,15 +103,21 @@ def get_data(cache):
         ch_lockdown_data = Helper.read_from_file("ch_lockdown_data")
 
     except FileNotFoundError:
-        # SOURCE https://www.thelancet.com/journals/laninf/article/PIIS1473-3099(20)30120-1/fulltext
+        # SOURCE
+        # https://www.thelancet.com/journals/laninf/article/PIIS1473-3099(20)30120-1/fulltext
         logger.debug("%s", "Pulling data...")
 
         confirmed_df = pd.read_csv(
-            'https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_confirmed_global.csv')
+            'https://raw.githubusercontent.com/CSSEGISandData/COVID-19/ \
+            master/csse_covid_19_data/csse_covid_19_time_series/ \
+            time_series_covid19_confirmed_global.csv')
         logger.info("%s", "Pulling mobility data...")
         apple_mobility = pd.read_csv(get_current_apple_url())
         logger.info("%s", "Pulling lockdown data...")
-        ch_lockdown_data = pd.read_csv("https://raw.githubusercontent.com/statistikZH/covid19zeitmarker/master/covid19zeitmarker.csv")
+        ch_lockdown_data = pd.read_csv(
+            "https://raw.githubusercontent.com/statistikZH/ \
+            covid19zeitmarker/master/covid19zeitmarker.csv"
+            )
 
         logger.debug("%s", "------Loading is completed ------")
         Helper.save_to_file("confirmed_df", confirmed_df)
@@ -126,7 +133,12 @@ def daily_increase(data):
 
 
 def moving_average(data, window_size=7):
-    return [np.mean(data[i:i+window_size]) if i + window_size < len(data) else np.mean(data[i:len(data)]) for i in range(len(data))]
+    return [
+        np.mean(data[i:i+window_size])
+        if i + window_size < len(data)
+        else np.mean(data[i:len(data)])
+        for i in range(len(data))
+        ]
 
 
 def prep_apple_mobility_data(apple_mobility, country) -> list[int, int]:
@@ -149,10 +161,18 @@ def prep_apple_mobility_data(apple_mobility, country) -> list[int, int]:
             mob_data_dict[k] = apple_mobility.loc[i][k]
         datasets.append(mob_data_dict)
 
-    return [([(k, v) for index, (k, v) in enumerate(dataset.items()) if index > 5]) for dataset in datasets]
+    return [
+        (
+            [
+                (k, v) for index, (k, v) in enumerate(dataset.items())
+                if index > 5
+                ]
+            )
+        for dataset in datasets
+        ]
 
 
-def interp_nans(x: [float], left=None, right=None, period=None) -> [float]:  # pylint: disable=invalid-name
+def interp_nans(x: [float], left=None, right=None, period=None) -> [float]:
     return list(
         np.interp(
             x=list(range(len(x))),
@@ -167,8 +187,11 @@ def interp_nans(x: [float], left=None, right=None, period=None) -> [float]:  # p
 
 def get_current_apple_url():
     response = requests.get(
-        "https://covid19-static.cdn-apple.com/covid19-mobility-data/current/v3/index.json").json()
-    return "https://covid19-static.cdn-apple.com/" + response['basePath'] + response['regions']['en-us']['csvPath']
+        "https://covid19-static.cdn-apple.com/covid19-mobility-data \
+        /current/v3/index.json").json()
+    return ("https://covid19-static.cdn-apple.com/"
+            + response['basePath']
+            + response['regions']['en-us']['csvPath'])
 
 
 timestart = time.perf_counter()
@@ -177,7 +200,9 @@ timestart = time.perf_counter()
 confirmed_df, apple_mobility, ch_lockdown_data = get_data(cache)
 ch_lockdown_data.drop('Link', axis=1, inplace=True)
 
-ch_lockdown_data = ch_lockdown_data[ch_lockdown_data.Kategorisierung != "Ferien"]
+ch_lockdown_data = ch_lockdown_data[
+    ch_lockdown_data.Kategorisierung != "Ferien"
+    ]
 print(ch_lockdown_data)
 
 logger.debug("%s", "log")
@@ -228,21 +253,24 @@ for i in range(len(future_forecast)):
 # plt.plot(future_forecast_dates, future_forecast)
 # plt.show()
 
-# slightly modify the data to fit the model better (regression models cannot pick the pattern)
+# slightly modify the data to fit the model better
+# (regression models cannot pick the pattern)
 days_to_skip = 500
-X_train_confirmed, X_test_confirmed, y_train_confirmed, y_test_confirmed = train_test_split(
-    days_since_1_22[days_to_skip:],
-    world_cases[days_to_skip:],
-    test_size=0.08,
-    shuffle=False
-)
+X_train_confirmed, X_test_confirmed, y_train_confirmed, y_test_confirmed = \
+    train_test_split(
+        days_since_1_22[days_to_skip:],
+        world_cases[days_to_skip:],
+        test_size=0.08,
+        shuffle=False
+    )
 
 # Get Covid data for country
 timestart = time.perf_counter()
 
 try:
     for index, value in enumerate(confirmed_df.loc):
-        if confirmed_df.loc[index]["Country/Region"].upper() == COUNTRY.upper():
+        if confirmed_df.loc[index]["Country/Region"].upper() \
+                == COUNTRY.upper():
             break
 except KeyError:
     pass
@@ -308,7 +336,7 @@ for z, value in tqdm(enumerate(datasets_as_xy)):
 
 avg_traffic_data = moving_average([sum(e)/len(e) for e in zip(*data_rows)], 7)
 ax.plot(data_x, avg_traffic_data, color="green", label="Average mobility data")
-ax.plot(data_x, r_value, color="orange")
+ax.plot(data_x, moving_average(r_value), color="red")
 
 
 ax.set_ylim(ymax=200)
@@ -340,9 +368,9 @@ if country.lower() =="switzerland":
 
         if str(date) in list(ch_lockdown_data.Datum):
             print(list(ch_lockdown_data.Datum).index(date))
-            
+
             print(True)
-        
+
 
     plt.axvspan(
         63,  # 16.03.20
