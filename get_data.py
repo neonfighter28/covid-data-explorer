@@ -8,6 +8,7 @@ Plot containing 4 lines:
 3. Traffic Data of country -> transit | DONE
 4. Traffic data normalized            | DONE
 5. COVID Data of country              | DONE
+6. R Value
 
 6. New dataset on whether there was a lockdown or not
 
@@ -27,7 +28,8 @@ import logging
 import pickle
 import time
 import asyncio
-from sys import argv
+from sys import argv, setrecursionlimit
+from functools import cache
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -37,7 +39,7 @@ from tqdm import tqdm
 from sklearn.model_selection import train_test_split
 import requests
 plt.style.use('seaborn-poster')
-
+timestart = time.perf_counter()
 logger = logging.getLogger(__name__)
 logger.setLevel(level=logging.DEBUG)
 fh = logging.StreamHandler()
@@ -45,27 +47,16 @@ fh_formatter = logging.Formatter(
     '%(asctime)s %(levelname)s %(lineno)d: - %(message)s')
 fh.setFormatter(fh_formatter)
 logger.addHandler(fh)
+"""
+setrecursionlimit(10000)
 
-
-def parse_args(country="switzerland", cache="False"):
-    try:
-        country = argv[1]
-    except IndexError:
-        country = "switzerland"  # default
-    try:
-        cache = bool(argv[2])
-    except IndexError:
-        cache = True
-    return country, cache
-
-
-if __name__ == "__main__":
-    country, cache = parse_args()
+@cache
+def round(*args, **kwargs):
+    return round(*args, **kwargs)
+"""
 
 
 class Helper:
-    pass
-
     def flatten(arr):
         # helper method for flattening the data,
         # so it can be displayed on a bar graph
@@ -88,10 +79,11 @@ class Helper:
             return pickle.load(file)
 
 
-class Main:
-    def __init__(self):
-        pass
-
+def parse_args(country="switzerland", cache="False"):
+    country = argv[1] if len(argv) > 1 else "switzerland"
+    cache = bool(argv[2]) if len(argv) > 2 else True
+    logger.debug("%s", f"Arguments {country = }, {cache = }")
+    return country, cache
 
 def get_data(cache):
     try:
@@ -118,6 +110,8 @@ def get_data(cache):
             "https://raw.githubusercontent.com/statistikZH/ \
             covid19zeitmarker/master/covid19zeitmarker.csv"
         )
+        # https://opendata.swiss/en/dataset/covid-19-schweiz/resource/92c50632-ecfa-4234-9c36-ea6121bb68ca
+        ch_re_data = "https://www.covid19.admin.ch/api/data/20220104-ph1baz76/sources/COVID19Re_geoRegion.csv"
 
         logger.debug("%s", "------Loading is completed ------")
         Helper.save_to_file("confirmed_df", confirmed_df)
@@ -144,7 +138,7 @@ def moving_average(data, window_size=7):
 def prep_apple_mobility_data(apple_mobility, country) -> list[int, int]:
     try:
         default_mob_data_dict = {}
-        for _, key in enumerate(apple_mobility):
+        for key in apple_mobility:
             default_mob_data_dict[key] = []
     except KeyError:
         pass
@@ -166,7 +160,6 @@ def prep_apple_mobility_data(apple_mobility, country) -> list[int, int]:
                 (k, v) for index, (k, v) in enumerate(dataset.items())
                 if index > 5
             ]
-
         for dataset in datasets
     ]
 
@@ -184,7 +177,6 @@ def interp_nans(x: [float], left=None, right=None, period=None) -> [float]:
     )
     return [round(i, 1) for i in lst]
 
-
 def get_current_apple_url():
     response = requests.get(
         "https://covid19-static.cdn-apple.com/covid19-mobility-data \
@@ -193,92 +185,83 @@ def get_current_apple_url():
             + response['basePath']
             + response['regions']['en-us']['csvPath'])
 
+if __name__ == "__main__":
+    country, cache = parse_args()
 
-timestart = time.perf_counter()
 
+class Main:
+    def __init__(self, country, cache):
+        self.__country = country
+        self.__cache = cache
+        self.timestart = time.perf_counter()
+        self.confirmed_df, self.apple_mobility, self.ch_lockdown_data = get_data(cache)
+        self.read_lockdown_data()
+
+        self.datasets_as_xy = prep_apple_mobility_data(self.apple_mobility, self.country)
+
+        self.plt = plt
+        self.ax = plt.gca()
+        self.ax2 = self.ax.twinx()
+
+    @property
+    def country(self):
+        return self.__country
+
+    @property
+    def cache(self):
+        return self.__cache
+
+
+    def read_lockdown_data(self):
+        self.ch_lockdown_data.drop('Link', axis=1, inplace=True)
+        self.ch_lockdown_data = self.ch_lockdown_data[
+            self.ch_lockdown_data.Kategorisierung != "Ferien"
+        ]
+
+    def _get_index_of_datarow(self):
+        try:
+            for index, value in enumerate(self.confirmed_df.loc):
+                if self.confirmed_df.loc[index]["Country/Region"].upper() \
+                        == self.country.upper():
+                    break
+        except KeyError:
+            pass
+        return index
+
+    def _build_def_data(self):
+        def_data = {}
+        try:
+            for key in confirmed_df:
+                def_data[key] = []
+
+            for k, v in def_data.items():
+                def_data[k] = confirmed_df.loc[index][k]
+        except KeyError:
+            pass
+        return def_data
+
+    def get_r_value(self):
+        pass
+
+cls = Main(country, cache)
 
 confirmed_df, apple_mobility, ch_lockdown_data = get_data(cache)
-ch_lockdown_data.drop('Link', axis=1, inplace=True)
-
-ch_lockdown_data = ch_lockdown_data[
-    ch_lockdown_data.Kategorisierung != "Ferien"
-]
-print(ch_lockdown_data)
-
-logger.debug("%s", f"Arguments {country = }, {cache = }")
-
-confirmed_df, apple_mobility, ch_lockdown_data = get_data(cache)
+ch_lockdown_data = cls.ch_lockdown_data
 
 cols = confirmed_df.keys()
-
 confirmed = confirmed_df.loc[:, cols[4]:cols[-1]]
-
 dates = confirmed.keys()
-world_cases = [confirmed[i].sum() for i in dates]
-mortality_rate = []
-
-# confirmed cases
-world_daily_increase = daily_increase(world_cases)
-world_confirmed_avg = moving_average(world_cases)
-world_daily_increase_avg = moving_average(world_daily_increase)
-
-days_since_1_22 = np.array([i for i in range(len(dates))]).reshape(-1, 1)
-world_cases = np.array(world_cases).reshape(-1, 1)
-
-days_in_future = 40
-future_forecast = np.array(
-    [i for i in range(len(dates)+days_in_future)]).reshape(-1, 1)
-adjusted_dates = future_forecast[:-10]
-
-start = '1/22/2020'
-start_date = datetime.datetime.strptime(start, '%m/%d/%Y')
-future_forecast_dates = []
-for i in range(len(future_forecast)):
-    future_forecast_dates.append(
-        (start_date + datetime.timedelta(days=i)).strftime('%m/%d/%Y'))
-
-# plt.plot(future_forecast_dates, future_forecast)
-# plt.show()
-
-# slightly modify the data to fit the model better
-# (regression models cannot pick the pattern)
-days_to_skip = 500
-X_train_confirmed, X_test_confirmed, y_train_confirmed, y_test_confirmed = \
-    train_test_split(
-        days_since_1_22[days_to_skip:],
-        world_cases[days_to_skip:],
-        test_size=0.08,
-        shuffle=False
-    )
 
 # Get Covid data for country
-timestart = time.perf_counter()
-
-try:
-    for index, value in enumerate(confirmed_df.loc):
-        if confirmed_df.loc[index]["Country/Region"].upper() \
-                == country.upper():
-            break
-except KeyError:
-    pass
-
-def_data = {}
-try:
-    for key in confirmed_df:
-        def_data[key] = []
-
-    for k, v in def_data.items():
-        def_data[k] = confirmed_df.loc[index][k]
-except KeyError:
-    pass
-new_data_def = def_data.copy()
+index = cls._get_index_of_datarow()
+def_data = cls._build_def_data()
 
 # Convert total cases each day to daily incidence and calculate R
 r_value = [0 for i in range(7)]
 lst = [0 for i in range(5)]
 k_minus_1 = 0
+new_data_def = def_data.copy()
 dd = []
-
 for index, (k, v) in enumerate(def_data.items()):
     if index < 5:
         new_data_def[k] = v
@@ -307,7 +290,7 @@ print(moving_average(lst))
 # Create Data Structures
 datasets_as_xy = prep_apple_mobility_data(apple_mobility, country)
 
-adjusted_dates = adjusted_dates.reshape(1, -1)[0]
+# adjusted_dates = adjusted_dates.reshape(1, -1)[0]
 plt.figure(figsize=(16, 10))
 
 ax = plt.gca()
@@ -315,7 +298,6 @@ ax2 = ax.twinx()
 
 # Get average of all lists
 data_rows = []
-
 
 for z, value in tqdm(enumerate(datasets_as_xy)):
     data_x = [i[0] for i in value]
@@ -340,14 +322,11 @@ ax.plot(data_x, avg_traffic_data, color="green", label="Average mobility data")
 print(r_value)
 ax.plot(data_x, moving_average(interp_nans(dd2)), color="red")
 
-
 ax.set_ylim(ymax=200)
-
 ax2.plot(
     data_x[2:],
     moving_average(lst, 7),
     color="blue",
-
     label=f"Incidence {country}, moving average"
 )
 ax2.set_ylim(ymax=Helper.average(sorted(lst, reverse=True)[:2]))
@@ -388,3 +367,35 @@ ax2.legend()
 print(time.perf_counter() - timestart)
 # exit(1)
 plt.show()
+
+
+"""
+days_since_1_22 = np.array([i for i in range(len(dates))]).reshape(-1, 1)
+world_cases = np.array(world_cases).reshape(-1, 1)
+
+days_in_future = 40
+future_forecast = np.array(
+    [i for i in range(len(dates)+days_in_future)]).reshape(-1, 1)
+adjusted_dates = future_forecast[:-10]
+
+start = '1/22/2020'
+start_date = datetime.datetime.strptime(start, '%m/%d/%Y')
+future_forecast_dates = []
+for i in range(len(future_forecast)):
+    future_forecast_dates.append(
+        (start_date + datetime.timedelta(days=i)).strftime('%m/%d/%Y'))
+
+# plt.plot(future_forecast_dates, future_forecast)
+# plt.show()
+
+# slightly modify the data to fit the model better
+# (regression models cannot pick the pattern)
+days_to_skip = 500
+X_train_confirmed, X_test_confirmed, y_train_confirmed, y_test_confirmed = \
+    train_test_split(
+        days_since_1_22[days_to_skip:],
+        world_cases[days_to_skip:],
+        test_size=0.08,
+        shuffle=False
+    )
+"""
