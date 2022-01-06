@@ -27,8 +27,7 @@ import datetime
 import logging
 import pickle
 import time
-import asyncio
-from sys import argv, setrecursionlimit
+from sys import argv
 from functools import cache
 
 import matplotlib.pyplot as plt
@@ -36,7 +35,6 @@ import numpy as np
 import pandas as pd
 from scipy.stats.stats import pearsonr
 from tqdm import tqdm
-from sklearn.model_selection import train_test_split
 import requests
 plt.style.use('seaborn-poster')
 timestart = time.perf_counter()
@@ -48,7 +46,6 @@ fh_formatter = logging.Formatter(
 fh.setFormatter(fh_formatter)
 logger.addHandler(fh)
 
-from functools import cache
 
 @cache
 def rround(*args, **kwargs):
@@ -156,12 +153,9 @@ def prep_apple_mobility_data(apple_mobility, country) -> list[int, int]:
         datasets.append(mob_data_dict)
 
     return [
-        [
-                (k, v) for index, (k, v) in enumerate(dataset.items())
-                if index > 5
-            ]
+        [(k, v) for index, (k, v) in enumerate(dataset.items())if index > 5]
         for dataset in datasets
-    ]
+        ]
 
 
 def interp_nans(x: [float], left=None, right=None, period=None) -> [float]:
@@ -193,15 +187,17 @@ class Main:
     def __init__(self, country, cache):
         self.__country = country
         self.__cache = cache
-        self.timestart = time.perf_counter()
-        self.confirmed_df, self.apple_mobility, self.ch_lockdown_data = get_data(cache)
+        self.confirmed_df, self.apple_mobility, self.ch_lockdown_data = get_data(
+            cache)
         self.read_lockdown_data()
 
-        self.datasets_as_xy = prep_apple_mobility_data(self.apple_mobility, self.country)
+        self.datasets_as_xy = prep_apple_mobility_data(
+            self.apple_mobility, self.country)
 
         self.plt = plt
         self.ax = plt.gca()
         self.ax2 = self.ax.twinx()
+        self.data_x = self.get_x_data()
 
     @property
     def country(self):
@@ -261,44 +257,48 @@ class Main:
         self.ax.set_ylim(ymax=200)
         self.plt.xlabel('Days Since 1/22/2020', size=15)
 
+    def get_x_data(self):
+        for value in self.datasets_as_xy:
+            return (list(zip(*value))[0])
+
     def plot(self):
         self.format_plot()
         lst = self.get_lst()
         # Get average of all lists
         data_rows = []
-
         for z, value in tqdm(enumerate(self.datasets_as_xy)):
-            data_y = interp_nans([i[1] for i in value])
+            data_y = interp_nans(list(zip(*value))[1])
             data_rows.append(moving_average(data_y, 7))
-            print(value)
-            data_x = (list(zip(*value))[0])
 
             match z:
                 case 0:
-                    self.ax.plot(data_x, moving_average(data_y, 7),
-                            color="#FE9402", label="Driving", alpha=0.5)
+                    self.plot_traffic_data(self.data_x, moving_average(data_y, 7),
+                                           color="#FE9402", label="Driving")
                 case 1:
-                    self.ax.plot(data_x, moving_average(data_y, 7),
-                            color="#FE2D55", label="Transit", alpha=0.5)
+                    self.plot_traffic_data(self.data_x, data_y,
+                                           color="#FE2D55", label="Transit")
                 case 2:
-                    self.ax.plot(data_x, moving_average(data_y, 7),
-                            color="#AF51DE", label="Walking", alpha=0.5)
+                    self.plot_traffic_data(self.data_x, data_y,
+                                           color="#AF51DE", label="Walking")
                 case _:
-                    self.ax.plot(data_x, moving_average(data_y, 7), color="black")
+                    self.plot_traffic_data(self.data_x, data_y,
+                                           color="black")
 
-        avg_traffic_data = moving_average([sum(e)/len(e) for e in zip(*data_rows)], 7)
-        self.ax.plot(data_x, avg_traffic_data, color="green", label="Average mobility data")
+        avg_traffic_data = moving_average(
+            [sum(e)/len(e) for e in zip(*data_rows)], 7)
+        self.ax.plot(self.data_x, avg_traffic_data, color="green",
+                     label="Average mobility data")
 
         self.ax2.plot(
-            data_x[2:],
-            moving_average(lst, 7),
+            self.data_x[2:],
+            moving_average(lst),
             color="blue",
             label=f"Incidence {country}, moving average"
         )
         self.ax2.set_ylim(ymax=Helper.average(sorted(lst, reverse=True)[:2]))
 
         self.plt.xticks(size=10, rotation=180, ticks=[
-            i*50 for i in range(len(data_x) % 50)])
+            i*50 for i in range(len(self.data_x) % 50)])
         self.plt.yticks(size=10)
         self.plt.grid()
         # print(avg_traffic_data[2:], moving_average(lst,7))
@@ -313,13 +313,14 @@ class Main:
             "%s", f"Pearson Constant: {pearsonr(n_traffic_data[2:], n_daily_incidence)}")
 
         if self.country.lower() == "switzerland":
-            for index, date in enumerate(data_x):
+            for index, date in enumerate(self.data_x):
 
                 if str(date) in list(self.ch_lockdown_data.Datum):
-                    # print(list(ch_lockdown_data.Datum).index(date))
+                    print(list(self.ch_lockdown_data.Datum).index(date))
+                    
 
-                    # print(True)
-                    pass
+                    print(True)
+
             self.plt.axvspan(
                 63,  # 16.03.20
                 119,
@@ -332,42 +333,15 @@ class Main:
         print(time.perf_counter() - timestart)
         self.plt.show()
 
+    def plot_traffic_data(self, x, y, **kwargs):
+        self.ax.plot(x, moving_average(y),
+                     alpha=0.5, **kwargs)
+
 
 if __name__ == "__main__":
+    timestart = time.perf_counter()
     country, cache = parse_args()
 
     cls = Main(country, cache)
 
     cls.plot()
-
-
-"""
-days_since_1_22 = np.array([i for i in range(len(dates))]).reshape(-1, 1)
-world_cases = np.array(world_cases).reshape(-1, 1)
-
-days_in_future = 40
-future_forecast = np.array(
-    [i for i in range(len(dates)+days_in_future)]).reshape(-1, 1)
-adjusted_dates = future_forecast[:-10]
-
-start = '1/22/2020'
-start_date = datetime.datetime.strptime(start, '%m/%d/%Y')
-future_forecast_dates = []
-for i in range(len(future_forecast)):
-    future_forecast_dates.append(
-        (start_date + datetime.timedelta(days=i)).strftime('%m/%d/%Y'))
-
-# plt.plot(future_forecast_dates, future_forecast)
-# plt.show()
-
-# slightly modify the data to fit the model better
-# (regression models cannot pick the pattern)
-days_to_skip = 500
-X_train_confirmed, X_test_confirmed, y_train_confirmed, y_test_confirmed = \
-    train_test_split(
-        days_since_1_22[days_to_skip:],
-        world_cases[days_to_skip:],
-        test_size=0.08,
-        shuffle=False
-    )
-"""
