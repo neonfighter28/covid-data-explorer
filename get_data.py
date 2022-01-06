@@ -55,7 +55,6 @@ def rround(*args, **kwargs):
     return round(*args, **kwargs)
 
 
-
 class Helper:
     def flatten(arr):
         # helper method for flattening the data,
@@ -66,7 +65,7 @@ class Helper:
         return sum(num) / len(num)
 
     def normalize(data):
-        return [i/max(interp_nans(data)) for i in data]
+        return [i/max(data) for i in data]
 
     def save_to_file(name, data):
         with open(f"assets/{name}.dat", "wb") as file:
@@ -84,6 +83,7 @@ def parse_args(country="switzerland", cache="False"):
     cache = bool(argv[2]) if len(argv) > 2 else True
     logger.debug("%s", f"Arguments {country = }, {cache = }")
     return country, cache
+
 
 def get_data(cache):
     try:
@@ -121,8 +121,10 @@ def get_data(cache):
 
     return confirmed_df, apple_mobility, ch_lockdown_data
 
+
 def daily_increase(data):
     return [data if i == 0 else data[i] - data[i-1] for i in range(len(data))]
+
 
 def moving_average(data, window_size=7):
     return [
@@ -253,17 +255,23 @@ class Main:
         return lst
 
     def format_plot(self):
-        pass
+        self.plt.grid()
+        self.ax.set_ylabel(
+            ' Increase of traffic routing requests in %, baseline at 100', size=20)
+        self.ax.set_ylim(ymax=200)
+        self.plt.xlabel('Days Since 1/22/2020', size=15)
 
     def plot(self):
+        self.format_plot()
         lst = self.get_lst()
         # Get average of all lists
         data_rows = []
 
         for z, value in tqdm(enumerate(self.datasets_as_xy)):
-            data_x = [i[0] for i in value]
             data_y = interp_nans([i[1] for i in value])
             data_rows.append(moving_average(data_y, 7))
+            print(value)
+            data_x = (list(zip(*value))[0])
 
             match z:
                 case 0:
@@ -281,7 +289,6 @@ class Main:
         avg_traffic_data = moving_average([sum(e)/len(e) for e in zip(*data_rows)], 7)
         self.ax.plot(data_x, avg_traffic_data, color="green", label="Average mobility data")
 
-        self.ax.set_ylim(ymax=200)
         self.ax2.plot(
             data_x[2:],
             moving_average(lst, 7),
@@ -289,9 +296,7 @@ class Main:
             label=f"Incidence {country}, moving average"
         )
         self.ax2.set_ylim(ymax=Helper.average(sorted(lst, reverse=True)[:2]))
-        self.plt.xlabel('Days Since 1/22/2020', size=15)
-        self.ax.set_ylabel(
-            ' Increase of traffic routing requests in %, baseline at 100', size=20)
+
         self.plt.xticks(size=10, rotation=180, ticks=[
             i*50 for i in range(len(data_x) % 50)])
         self.plt.yticks(size=10)
