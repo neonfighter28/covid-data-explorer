@@ -9,7 +9,7 @@
             "name": "Python: Current File",
             "type": "python",
             "request": "launch",
-            "program": "get-data.py",
+            "program": "get_data.py",
             "console": "integratedTerminal",
             "args": ["switzerland", "True"],
         }
