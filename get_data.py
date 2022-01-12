@@ -276,6 +276,7 @@ class Main:
         logger.info(print(time.perf_counter() - timestart))
         # Calculate pearson const.
         self.log_pearson_constant(avg_traffic_data=avg_traffic_data)
+        self.show_plot()
 
     def show_plot(self):
         self.plt.show()

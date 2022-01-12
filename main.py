@@ -1,11 +1,16 @@
+import json
 import logging
-from typing import Tuple
 from sys import argv
+from typing import Tuple
 
+import get_data
 from config import LOG_CONFIG, LOG_LEVEL
 
 COMMANDS = ["plt", "plot"]
 ARGS = ["cs", "cases", "re", "reproduction", "mb", "mobility"]
+
+class InputFailure(BaseException):
+    """Raised if input sequence needs to be repeated"""
 
 class Argument:
     """
@@ -36,18 +41,20 @@ class InputHandler():
     """
     def __init__(self, user_in):
         self.input = user_in
-        self.command = self.input.split()[0]
+        try:
+            self.command = self.input.split()[0]
+        except IndexError:
+            self.__init__(ret_input())
+
         self.args = self.input.split()[1:]
         logger.debug("%s", f"COMMAND {self.command}")
         logger.debug("%s", f"ARGS {self.args}")
 
         try:
             assert self.command in COMMANDS
-            for arg in self.args:
-                assert arg in ARGS
         except AssertionError:
-            logger.fatal("%s", f"Arguments invalid {self.args, self.command}")
-            print("Arguments invalid, retry")
+            logger.fatal("%s", f"Command invalid {self.command}")
+            print("Command invalid, retry")
             self.__init__(ret_input())
 
         match self.command:
@@ -63,22 +70,61 @@ class InputHandler():
         where as data is a list of lines to be plotted, defined in the global PLT
         """
 
+        self.start_date = None
+        self.end_date = None
+        self.country = None
         self.arguments = self.arg_handler(args)
+        self.show_plot = True
+        self.data = []
+
+        for argument in self.arguments:
+            logger.debug("%s", f"{argument = }")
+            match argument.name:
+                case "--country" | "-c":
+                    self.country = argument.value
+                case "--startdate" | "-sd":
+                    self.start_date = argument.value
+                    raise NotImplementedError
+                case "--enddate" | "-ed":
+                    self.end_date = argument.value
+                    raise NotImplementedError
+                case "--data" | "-d":
+                    self.data.append(argument.value)
+                case "--show" | "-s":
+                    self.show_plot = json.loads(argument.value.lower()) # Assert it is a boolean
+
+        self.country = "switzerland" if not self.country else self.country
+        self.start_date = None if not self.start_date else self.start_date
+        self.end_date = None if not self.end_date else self.end_date
+        self.data = None if not self.data else self.data
+        logger.debug("%s", f"{self.country = }, {self.start_date = }, {self.end_date = }, {self.data = }")
+        self.connection = get_data.Main()
+        for argument in self.data:
+            logger.debug("%s", argument)
+            match argument:
+                case "cs" | "cases":
+                    logger.debug("%s", "Plotting Cases...")
+                    self.connection.plot_cases()
+                case _:
+                    logger.warning("%s", f"Data not found for {argument}")
+        if self.show_plot:
+            logger.debug("%s", "Showing plot...")
+            self.connection.show_plot()
+        else:
+            logger.debug("%s", "Not showing plot")
 
     def arg_handler(self, args) -> Argument(str, str):
         """Takes a list of arguments and returns a list of tuples"""
         collector = []
         for index, value in enumerate(args):
             if index % 2 == 0:
-                collector.append(Argument(value[index], value[index+1]))
+                collector.append(Argument(value, args[index+1]))
+        print(f"{collector = }")
         return collector
 
 
-
-
-
 def main():
-    if argv is False:
+    if not argv:
         InputHandler(ret_input())
     else:
         stdin = ""
@@ -95,19 +141,25 @@ def ret_input():
 Usage/Syntax:
 i   | init
 plt | plot
-    --country [COUNTRY]
-    --timeA   [DD.MM.YY]
-    --timeB   [DD.MM.YY]
-    --data    [list(DATA)]
-
-data can be
-    - re | reproduction -> Plots Reproduction Value
-    - cs | cases        -> Cases for country
-    - mb | mobility     -> Plots Apple Mobility Data
+    --country   | -c    [COUNTRY]       | Default: switzerland
+    --startdate | -sd   [DD.MM.YY]      | Default: None
+    --enddate   | -ed   [DD.MM.YY]      | Default: None
+    --show      | -s    [bool]          | Default: True Whether to show the plot
+    --data      | -d    [list(DATA)]    | Default: []
+        - re | reproduction -> Plots Reproduction Value
+        - cs | cases        -> Cases for country
+        - mb | mobility     -> Plots Apple Mobility Data
 """
     )
     user_in = input("IN >>>> ")
     return user_in
+
+
+def rec_until_keyboard_interrupt():
+    try:
+        main()
+    except InputFailure:
+        rec_until_keyboard_interrupt()
 
 
 logger = logging.getLogger(name="__main__")
@@ -117,4 +169,5 @@ if __name__ == "__main__":
     fh_formatter = logging.Formatter(LOG_CONFIG)
     fh.setFormatter(fh_formatter)
     logger.addHandler(fh)
-    main()
+
+    rec_until_keyboard_interrupt()
