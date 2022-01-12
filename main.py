@@ -1,8 +1,33 @@
 import logging
-from config import LOG_LEVEL, LOG_CONFIG
+from typing import Tuple
+
+from config import LOG_CONFIG, LOG_LEVEL
 
 COMMANDS = ["plt", "plot"]
 ARGS = ["cs", "cases", "re", "reproduction", "mb", "mobility"]
+
+class Argument:
+    """
+    Argument class containing the attributes name and value
+    """
+    def __init__(self, name, value) -> None:
+        self.__name = name
+        self.__value = value
+
+    @property
+    def name(self):
+        return self.__name
+
+    @property
+    def value(self):
+        return self.__value
+
+    def __hash__(self) -> int:
+        return hash(self.__name) + hash(self.__value)
+
+    def __repr__(self) -> str:
+        return f"Argument: {self.__name}, Value: {self.__value}"
+
 
 class InputHandler():
     """
@@ -37,7 +62,17 @@ class InputHandler():
         where as data is a list of lines to be plotted, defined in the global PLT
         """
 
-        self.country = args[0]
+        self.arguments = self.arg_handler(args)
+
+    def arg_handler(self, args) -> Argument(str, str):
+        """Takes a list of arguments and returns a list of tuples"""
+        collector = []
+        for index, value in enumerate(args):
+            if index % 2 == 0:
+                collector.append(Argument(value[index], value[index+1]))
+        return collector
+
+
 
 
 
