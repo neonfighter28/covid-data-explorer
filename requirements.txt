@@ -5,3 +5,4 @@ ipython
 tqdm
 requests
 autopep8
+pickle
