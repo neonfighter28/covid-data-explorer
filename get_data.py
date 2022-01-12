@@ -1,5 +1,5 @@
 """
-Usage: py get-data.py [country='switzerland'] [no_cache=False]
+Usage: py get-data.py
 
 Goals:
 Plot containing 4 lines:
@@ -24,26 +24,26 @@ Traffic Data needs to be normalized, to account for weekends/days off | DONE
 -> Predict traffic Data for the next 2 weeks
 """
 import datetime
+import json
 import logging
 import time
-import json
-from sys import argv
 from functools import cache
-from config import CACHE, COUNTRY, LOG_CONFIG
+from sys import argv
 
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from scipy.stats.stats import pearsonr
 from tqdm import tqdm
-import requests
+
 import refresh_data
+from config import CACHE, COUNTRY, LOG_CONFIG, DATES_RE, LOG_LEVEL
 
 plt.style.use('seaborn-poster')
 timestart = time.perf_counter()
 
 logger = logging.getLogger(__name__)
-logger.setLevel(level=logging.DEBUG)
+logger.setLevel(level=LOG_LEVEL)
 fh = logging.StreamHandler()
 fh_formatter = logging.Formatter(LOG_CONFIG)
 fh.setFormatter(fh_formatter)
@@ -62,14 +62,14 @@ class Helper:
         return [i[0] for i in arr.tolist()]
 
     def average(num):
+        # sum of an array divided by its length
         return sum(num) / len(num)
 
     def normalize(data):
         return [i/max(data) for i in data]
 
-
-def daily_increase(data):
-    return [data if i == 0 else data[i] - data[i-1] for i in range(len(data))]
+    def daily_increase(data):
+        return [data if i == 0 else data[i] - data[i-1] for i in range(len(data))]
 
 
 def moving_average(data, window_size=7):
@@ -102,7 +102,7 @@ def prep_apple_mobility_data(apple_mobility, country) -> list[int, int]:
         datasets.append(mob_data_dict)
 
     return [
-        [(k, v) for index, (k, v) in enumerate(dataset.items())if index > 5]
+        [(k, v) for index, (k, v) in enumerate(dataset.items()) if index > 5]
         for dataset in datasets
     ]
 
@@ -181,13 +181,13 @@ class Main:
         re_mean = self.ch_re_data.median_R_mean.to_list()
         re_high = self.ch_re_data.median_R_highHPD.to_list()
         re_low = self.ch_re_data.median_R_lowHPD.to_list()
-        self.re_mean = self.ret_list(re_mean)
-        self.re_high = self.ret_list(re_high)
-        self.re_low = self.ret_list(re_low)
+        self.re_mean = self.add_nans_to_start_of_list(re_mean)
+        self.re_high = self.add_nans_to_start_of_list(re_high)
+        self.re_low = self.add_nans_to_start_of_list(re_low)
 
-    def ret_list(self, re):
-        # The first 34 days are not included in this dataset
-        x = [np.nan for i in range(34)]
+    def add_nans_to_start_of_list(self, re, nan=DATES_RE):
+        # The first 26 days are not included in this dataset
+        x = [np.nan for i in range(nan)]
         for i in re:
             x.append(rround(i*100, 1))
         return x
@@ -257,8 +257,7 @@ class Main:
         self.plt.grid()
         self.get_r_value()
         self.ax.plot(self.re_mean)
-        #self.ax.plot(self.re_high, alpha=0.5)
-        #self.ax.plot(self.re_low, alpha=0.5)
+
         self.ax.fill_between(self.data_x, self.re_low, self.re_mean, alpha=0.5)
         self.ax.fill_between(self.data_x, self.re_high,
                              self.re_mean, alpha=0.5)
