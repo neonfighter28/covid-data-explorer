@@ -1,5 +1,6 @@
 import logging
 from typing import Tuple
+from sys import argv
 
 from config import LOG_CONFIG, LOG_LEVEL
 
@@ -77,7 +78,15 @@ class InputHandler():
 
 
 def main():
-    InputHandler(ret_input())
+    if argv is False:
+        InputHandler(ret_input())
+    else:
+        stdin = ""
+        for i, arg in enumerate(argv):
+            if i == 0:
+                continue
+            stdin = stdin + arg + " "
+        InputHandler(stdin)
 
 
 def ret_input():
@@ -97,7 +106,7 @@ data can be
     - mb | mobility     -> Plots Apple Mobility Data
 """
     )
-    user_in = input()
+    user_in = input("IN >>>> ")
     return user_in
 
 
