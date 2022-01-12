@@ -26,6 +26,7 @@ def get_new_data():
 
     logger.debug("%s", "------Loading is completed ------")
 
+    # Saving to file
     save_to_file("confirmed_df", confirmed_df)
     save_to_file("apple_mobility", apple_mobility)
     save_to_file("ch_lockdown_data", ch_lockdown_data)
@@ -91,6 +92,7 @@ def get_re_data_url():
             logger.info("%s", f"Download URL for R_e data: {download_url}")
             return download_url
 
+
 def save_to_file(name, data):
     with open(f"assets/{name}.dat", "wb") as file:
         logger.debug("%s", f"Saving to file {file.name}")
@@ -110,9 +112,12 @@ def read_from_file(name):
 logger = logging.getLogger("__main__")
 
 if __name__ == "__main__":
+    # setup logger, if this is run as main
     logger.setLevel(level=LOG_LEVEL)
     fh = logging.StreamHandler()
     fh_formatter = logging.Formatter(LOG_CONFIG)
     fh.setFormatter(fh_formatter)
     logger.addHandler(fh)
+
+    # refresh data
     get_new_data()
