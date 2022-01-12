@@ -43,11 +43,6 @@ plt.style.use('seaborn-poster')
 timestart = time.perf_counter()
 
 logger = logging.getLogger(__name__)
-logger.setLevel(level=LOG_LEVEL)
-fh = logging.StreamHandler()
-fh_formatter = logging.Formatter(LOG_CONFIG)
-fh.setFormatter(fh_formatter)
-logger.addHandler(fh)
 
 
 @cache
@@ -298,6 +293,11 @@ class Main:
 
 
 if __name__ == "__main__":
+    logger.setLevel(level=LOG_LEVEL)
+    fh = logging.StreamHandler()
+    fh_formatter = logging.Formatter(LOG_CONFIG)
+    fh.setFormatter(fh_formatter)
+    logger.addHandler(fh)
     timestart = time.perf_counter()
 
     cls = Main()
