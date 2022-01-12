@@ -27,6 +27,7 @@ import datetime
 import logging
 import pickle
 import time
+import json
 from sys import argv
 from functools import cache
 
@@ -77,7 +78,7 @@ class Helper:
 
 def parse_args(country="switzerland", cache="False"):
     country = argv[1] if len(argv) > 1 else "switzerland"
-    cache = bool(argv[2]) if len(argv) > 2 else True
+    cache = bool(json.loads(argv[2].lower())) if len(argv) > 2 else True
     logger.debug("%s", f"Arguments {country = }, {cache = }")
     return country, cache
 
