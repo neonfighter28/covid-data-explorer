@@ -50,21 +50,20 @@ def rround(*args, **kwargs):
     return round(*args, **kwargs)
 
 
-class Helper:
-    def flatten(arr):
-        # helper method for flattening the data,
-        # so it can be displayed on a bar graph
-        return [i[0] for i in arr.tolist()]
+def flatten(arr):
+    # helper method for flattening the data,
+    # so it can be displayed on a bar graph
+    return [i[0] for i in arr.tolist()]
 
-    def average(num):
-        # sum of an array divided by its length
-        return sum(num) / len(num)
+def average(num):
+    # sum of an array divided by its length
+    return sum(num) / len(num)
 
-    def normalize(data):
-        return [i/max(data) for i in data]
+def normalize(data):
+    return [i/max(data) for i in data]
 
-    def daily_increase(data):
-        return [data if i == 0 else data[i] - data[i-1] for i in range(len(data))]
+def daily_increase(data):
+    return [data if i == 0 else data[i] - data[i-1] for i in range(len(data))]
 
 
 def moving_average(data, window_size=7):
@@ -188,9 +187,9 @@ class Main:
         return x
 
     def get_lst(self):
-        lst = [0 for i in range(3)]
+        lst = [0 for _ in range(3)]
         k_minus_1 = 0
-        for index, (k, v) in enumerate(self._build_def_data().items()):
+        for index, (_, v) in enumerate(self._build_def_data().items()):
             if index < 5:
                 lst.append(0)
             else:
@@ -200,14 +199,25 @@ class Main:
 
     def format_plot(self):
         self.plt.grid()
-        self.ax.set_ylabel(
-            ' Increase of traffic routing requests in %, baseline at 100', size=20)
-        self.ax.set_ylim(ymax=200)
         self.plt.xlabel('Days Since 1/22/2020', size=15)
 
     def get_x_data(self):
         for value in self.datasets_as_xy:
-            return (list(zip(*value))[0])
+            return list(zip(*value))[0]
+
+    def plot_cases(self):
+        self.format_plot()
+        lst = self.get_lst()
+        self.ax2.plot(
+            self.data_x[2:],
+            moving_average(lst),
+            color="blue",
+            label=f"Incidence {COUNTRY}, moving average"
+        )
+        self.ax.set_ylabel(
+            'Daily Incidence (Moving Average over 7 days)', size=20)
+        self.plt.xticks(size=10, rotation=0, ticks=[
+            i*50 for i in range(int(len(self.data_x)/2) % 50)])
 
     def plot(self):
         self.format_plot()
@@ -215,11 +225,11 @@ class Main:
         logger.debug("%s", "Plotting traffic data")
         # Get average of all lists
         data_rows = []
-        for z, value in enumerate(self.datasets_as_xy):
+        for index, value in enumerate(self.datasets_as_xy):
             data_y = interp_nans(list(zip(*value))[1])
             data_rows.append(moving_average(data_y, 7))
 
-            match z:
+            match index:
                 case 0:
                     self.plot_traffic_data(self.data_x, moving_average(data_y),
                                            color="#FE9402", label="Driving")
@@ -232,6 +242,10 @@ class Main:
                 case _:
                     self.plot_traffic_data(self.data_x, data_y,
                                            color="black")
+        self.ax.set_ylabel(
+            ' Increase of traffic routing requests in %, baseline at 100', size=20)
+        self.ax.set_ylim(ymax=200)
+
 
         avg_traffic_data = moving_average(
             [sum(e)/len(e) for e in zip(*data_rows)], 7)
@@ -244,10 +258,10 @@ class Main:
             color="blue",
             label=f"Incidence {COUNTRY}, moving average"
         )
-        self.ax2.set_ylim(ymax=Helper.average(sorted(lst, reverse=True)[:2]))
+        self.ax2.set_ylim(ymax=average(sorted(lst, reverse=True)[:2]))
         self.lst = lst
-        self.plt.xticks(size=10, rotation=180, ticks=[
-            i*50 for i in range(len(self.data_x) % 50)])
+        self.plt.xticks(size=10, rotation=90, ticks=[
+            i*50 for i in range(len(self.data_x) % 100)])
         self.plt.yticks(size=10)
         self.plt.grid()
         self.get_r_value()
@@ -262,6 +276,8 @@ class Main:
         logger.info(print(time.perf_counter() - timestart))
         # Calculate pearson const.
         self.log_pearson_constant(avg_traffic_data=avg_traffic_data)
+
+    def show_plot(self):
         self.plt.show()
 
     def plot_traffic_data(self, x, y, **kwargs):
@@ -286,8 +302,8 @@ class Main:
 
     def log_pearson_constant(self, avg_traffic_data):
         # Calculate pearson const.
-        n_traffic_data = Helper.normalize(moving_average(avg_traffic_data, 50))
-        n_daily_incidence = Helper.normalize(moving_average(self.lst, 50))
+        n_traffic_data = normalize(moving_average(avg_traffic_data, 50))
+        n_daily_incidence = normalize(moving_average(self.lst, 50))
         logger.debug(
             "%s", f"Pearson Constant: {pearsonr(n_traffic_data[2:], n_daily_incidence)}")
 
