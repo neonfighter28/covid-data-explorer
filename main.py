@@ -40,15 +40,18 @@ class InputHandler():
     """
     def __init__(self, user_in):
         self.input = user_in
+        print("Splitting Input")
         try:
+            print("2. Splitting Input")
             self.command = self.input.split()[0]
         except IndexError:
+            print("Handling IndexError")
             self.__init__(ret_input())
-
+        print("How often u get called ")
         self.args = self.input.split()[1:]
         logger.debug("%s", f"COMMAND {self.command}")
         logger.debug("%s", f"ARGS {self.args}")
-
+        print("Assert command")
         try:
             assert self.command in COMMANDS
         except AssertionError:
@@ -99,7 +102,7 @@ class InputHandler():
         logger.debug("%s", f"{self.country = }, {self.start_date = }, {self.end_date = }, {self.data = }")
         self.connection = get_data.Main()
         self.data = self.data.split("+")
-        print(self.data)
+
         for argument in self.data:
             logger.debug("%s", argument)
             match argument:
@@ -140,6 +143,7 @@ def main():
             if i == 0:
                 continue
             stdin = stdin + arg + " "
+        print("Handling Input from STDIN")
         InputHandler(stdin)
 
 
