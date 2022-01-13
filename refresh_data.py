@@ -13,6 +13,7 @@ def get_new_data():
     url_ch_cov_markers = "https://raw.githubusercontent.com/statistikZH/covid19zeitmarker/master/covid19zeitmarker.csv"
     url_apple_mobility_data = get_current_apple_url()
     url_ch_re_data = get_re_data_url()
+    url_owid = "https://covid.ourworldindata.org/data/owid-covid-data.csv"
 
     logger.info("%s", "------   Pulling data...   ------")
 
@@ -23,6 +24,8 @@ def get_new_data():
     ch_lockdown_data = pd.read_csv(url_ch_cov_markers)
     logger.debug("%s", "Pulling R_e data")
     ch_re_data = pd.read_csv(url_ch_re_data)
+    logger.debug("%s", "Pulling OWID data")
+    owid_data = pd.read_csv(url_owid)
 
     logger.debug("%s", "------Loading is completed ------")
 
@@ -31,9 +34,10 @@ def get_new_data():
     save_to_file("apple_mobility", apple_mobility)
     save_to_file("ch_lockdown_data", ch_lockdown_data)
     save_to_file("ch_re_data", ch_re_data)
+    save_to_file("owid_data", owid_data)
     logger.debug("%s", "saved to cache!")
 
-    return confirmed_df, apple_mobility, ch_lockdown_data, ch_re_data
+    return confirmed_df, apple_mobility, ch_lockdown_data, ch_re_data, owid_data
 
 
 def get_cached_data():
@@ -44,13 +48,14 @@ def get_cached_data():
         apple_mobility = read_from_file("apple_mobility")
         ch_lockdown_data = read_from_file("ch_lockdown_data")
         ch_re_data = read_from_file("ch_re_data")
+        owid_data = read_from_file("owid_data")
     except FileNotFoundError:
         c += 1
         if c > 3:
             raise RecursionError
         get_new_data()
         get_cached_data()
-    return confirmed_df, apple_mobility, ch_lockdown_data, ch_re_data
+    return confirmed_df, apple_mobility, ch_lockdown_data, ch_re_data, owid_data
 
 
 def get_current_apple_url():

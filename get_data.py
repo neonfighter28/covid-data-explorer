@@ -121,7 +121,7 @@ class Main:
     def __init__(self):
         self.__country = COUNTRY
         self.__cache = CACHE
-        self.confirmed_df, self.apple_mobility, self.ch_lockdown_data, self.ch_re_data = refresh_data.get_cached_data()
+        self.confirmed_df, self.apple_mobility, self.ch_lockdown_data, self.ch_re_data, self.owid_data = refresh_data.get_cached_data()
         self.read_lockdown_data()
 
         self.datasets_as_xy = prep_apple_mobility_data(
@@ -188,7 +188,7 @@ class Main:
         return x
 
     def get_lst(self):
-        lst = [0 for _ in range(3)]
+        lst = [0 for _ in range(2)]
         k_minus_1 = 0
         for index, (_, v) in enumerate(self._build_def_data().items()):
             if index < 5:
@@ -234,26 +234,21 @@ class Main:
 
             match index:
                 case 0:
-                    self.plot_traffic_data(self.data_x, moving_average(data_y),
+                    self._plot_traffic_data(self.data_x, moving_average(data_y),
                                            color="#FE9402", label="Driving")
                 case 1:
-                    self.plot_traffic_data(self.data_x, data_y,
+                    self._plot_traffic_data(self.data_x, data_y,
                                            color="#FE2D55", label="Transit")
                 case 2:
-                    self.plot_traffic_data(self.data_x, data_y,
+                    self._plot_traffic_data(self.data_x, data_y,
                                            color="#AF51DE", label="Walking")
                 case _:
-                    self.plot_traffic_data(self.data_x, data_y,
+                    self._plot_traffic_data(self.data_x, data_y,
                                            color="black")
         self.ax.set_ylabel(
             ' Increase of traffic routing requests in %, baseline at 100', size=20)
         self.ax.set_ylim(ymax=200)
 
-
-        avg_traffic_data = moving_average(
-            [sum(e)/len(e) for e in zip(*data_rows)], 7)
-        self.ax.plot(self.data_x, avg_traffic_data, color="green",
-                     label="Average mobility data")
 
         self.ax2.plot(
             self.data_x[2:],
@@ -273,7 +268,8 @@ class Main:
         self.ax2.legend()
         logger.info(print(time.perf_counter() - timestart))
         # Calculate pearson const.
-        self.log_pearson_constant(avg_traffic_data=avg_traffic_data)
+        self.get_avg_traffic_data()
+        self.log_pearson_constant(avg_traffic_data=self.avg_traffic_data)
 
     def plot_re_data(self):
         self.get_r_value()
@@ -292,7 +288,50 @@ class Main:
     def show_plot(self):
         self.plt.show()
 
-    def plot_traffic_data(self, x, y, **kwargs):
+    def get_avg_traffic_data(self):
+        # Get average of all lists
+        data_rows = []
+        for index, value in enumerate(self.datasets_as_xy):
+            data_y = interp_nans(list(zip(*value))[1])
+            data_rows.append(moving_average(data_y, 7))
+
+        self.avg_traffic_data = moving_average(
+            [sum(e)/len(e) for e in zip(*data_rows)], 7)
+
+    def plot_traffic_data(self):
+        self.format_plot()
+        lst = self.get_lst()
+        logger.debug("%s", "Plotting traffic data")
+        # Get average of all lists
+        data_rows = []
+        for index, value in enumerate(self.datasets_as_xy):
+            data_y = interp_nans(list(zip(*value))[1])
+            data_rows.append(moving_average(data_y, 7))
+
+            match index:
+                case 0:
+                    self._plot_traffic_data(self.data_x, moving_average(data_y),
+                                           color="#FE9402", label="Driving")
+                case 1:
+                    self._plot_traffic_data(self.data_x, data_y,
+                                           color="#FE2D55", label="Transit")
+                case 2:
+                    self._plot_traffic_data(self.data_x, data_y,
+                                           color="#AF51DE", label="Walking")
+                case _:
+                    self._plot_traffic_data(self.data_x, data_y,
+                                           color="black")
+        self.ax.set_ylabel(
+            ' Increase of traffic routing requests in %, baseline at 100', size=20)
+        self.ax.set_ylim(ymax=200)
+
+        self.avg_traffic_data = moving_average(
+            [sum(e)/len(e) for e in zip(*data_rows)], 7)
+        self.ax.plot(self.data_x, self.avg_traffic_data, color="green",
+                     label="Average mobility data")
+
+
+    def _plot_traffic_data(self, x, y, **kwargs):
         self.ax.plot(x, moving_average(y),
                      alpha=0.5, **kwargs)
 
