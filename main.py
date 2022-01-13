@@ -144,22 +144,25 @@ def main():
 
 
 def ret_input() -> str:
-    print(
-"""
-Usage/Syntax:
-i   | init
-plt | plot
-    --country   | -c    [COUNTRY]       | Default: switzerland
-    --startdate | -sd   [DD.MM.YY]      | Default: None
-    --enddate   | -ed   [DD.MM.YY]      | Default: None
-    --show      | -s    [bool]          | Default: True Whether to show the plot
-    --data      | -d    [ARG+ARG+...]    | Default: None
-        - re | reproduction -> Plots Reproduction Value
-        - cs | cases        -> Cases for country
-        - mb | mobility     -> Plots Apple Mobility Data
-"""
-    )
-    user_in = input("covid-sets >>>> ")
+    try:
+        print(
+    """
+    Usage/Syntax:
+    plt | plot
+        --country   | -c    [COUNTRY]       | Default: switzerland
+        --startdate | -sd   [DD.MM.YY]      | Default: None
+        --enddate   | -ed   [DD.MM.YY]      | Default: None
+        --show      | -s    [bool]          | Default: True Whether to show the plot
+        --data      | -d    [ARG+ARG+...]    | Default: None
+            - re | reproduction -> Plots Reproduction Value
+            - cs | cases        -> Cases for country
+            - mb | mobility     -> Plots Apple Mobility Data
+===================================================================================="""
+        )
+        user_in = input("covid-sets >>>> ")
+    except KeyboardInterrupt:
+        print("\nCtrl+C pressed, exiting...")
+        exit(1)
     return user_in
 
 
