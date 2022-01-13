@@ -111,6 +111,7 @@ class InputHandler():
                     self.connection.plot_re_data()
                 case "mb" | "mobility":
                     logger.debug("%s", "Plotting mobility data")
+                    self.connection.plot_traffic_data()
                 case _:
                     logger.warning("%s", f"Data not found for {argument}")
 
@@ -152,13 +153,13 @@ plt | plot
     --startdate | -sd   [DD.MM.YY]      | Default: None
     --enddate   | -ed   [DD.MM.YY]      | Default: None
     --show      | -s    [bool]          | Default: True Whether to show the plot
-    --data      | -d    [list(DATA)]    | Default: []
+    --data      | -d    [ARG+ARG+...]    | Default: None
         - re | reproduction -> Plots Reproduction Value
         - cs | cases        -> Cases for country
         - mb | mobility     -> Plots Apple Mobility Data
 """
     )
-    user_in = input("IN >>>> ")
+    user_in = input("covid-sets >>>> ")
     return user_in
 
 

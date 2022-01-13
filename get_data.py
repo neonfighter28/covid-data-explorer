@@ -272,6 +272,12 @@ class Main:
         self.log_pearson_constant(avg_traffic_data=self.avg_traffic_data)
 
     def plot_re_data(self):
+        if self.__country == "switzerland":
+            self._plot_ch_re_data()
+        else:
+            self._plot_other_re_data()
+
+    def _plot_ch_re_data(self):
         self.get_r_value()
         self.ax.plot(self.re_mean)
 
@@ -283,7 +289,6 @@ class Main:
             'Daily Reproduction Value (Moving Average over 7 days)', size=20)
         self.plt.xticks(size=10, rotation=90, ticks=[
             i*50 for i in range(int(len(self.data_x)/2) % 50)])
-
 
     def show_plot(self):
         self.plt.show()
