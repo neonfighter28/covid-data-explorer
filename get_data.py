@@ -131,6 +131,7 @@ class Main:
         self.ax = plt.gca()
         self.ax2 = self.ax.twinx()
         self.data_x = self.get_x_data()
+        self.formatted = False
 
     @property
     def country(self):
@@ -198,8 +199,10 @@ class Main:
         return lst
 
     def format_plot(self):
-        self.plt.grid()
-        self.plt.xlabel('Days Since 1/22/2020', size=15)
+        if not self.formatted:
+            self.plt.grid()
+            self.plt.xlabel('Days Since 1/22/2020', size=15)
+            self.formatted = True
 
     def get_x_data(self):
         for value in self.datasets_as_xy:
@@ -264,19 +267,27 @@ class Main:
             i*50 for i in range(len(self.data_x) % 100)])
         self.plt.yticks(size=10)
         self.plt.grid()
-        self.get_r_value()
-        self.ax.plot(self.re_mean)
-
-        self.ax.fill_between(self.data_x, self.re_low, self.re_mean, alpha=0.5)
-        self.ax.fill_between(self.data_x, self.re_high,
-                             self.re_mean, alpha=0.5)
+        self.plot_re_data()
         self.plot_lockdown_data()
         self.ax.legend()
         self.ax2.legend()
         logger.info(print(time.perf_counter() - timestart))
         # Calculate pearson const.
         self.log_pearson_constant(avg_traffic_data=avg_traffic_data)
-        self.show_plot()
+
+    def plot_re_data(self):
+        self.get_r_value()
+        self.ax.plot(self.re_mean)
+
+        self.ax.fill_between(self.data_x, self.re_low, self.re_mean, alpha=0.5)
+        self.ax.fill_between(self.data_x, self.re_high,
+                             self.re_mean, alpha=0.5)
+
+        self.ax.set_ylabel(
+            'Daily Reproduction Value (Moving Average over 7 days)', size=20)
+        self.plt.xticks(size=10, rotation=90, ticks=[
+            i*50 for i in range(int(len(self.data_x)/2) % 50)])
+
 
     def show_plot(self):
         self.plt.show()
@@ -320,3 +331,4 @@ if __name__ == "__main__":
     cls = Main()
 
     cls.plot()
+    cls.show_plot()

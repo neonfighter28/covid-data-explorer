@@ -7,7 +7,6 @@ import get_data
 from config import LOG_CONFIG, LOG_LEVEL
 
 COMMANDS = ["plt", "plot"]
-ARGS = ["cs", "cases", "re", "reproduction", "mb", "mobility"]
 
 class InputFailure(BaseException):
     """Raised if input sequence needs to be repeated"""
@@ -67,7 +66,7 @@ class InputHandler():
         """
         According to the usage, the passed-through arguments are supposed to be in the following order:
         [COUNTRY] [TIMEA] [TIMEB] [data]
-        where as data is a list of lines to be plotted, defined in the global PLT
+        where as data is a list of lines to be plotted
         """
 
         self.start_date = None
@@ -75,7 +74,7 @@ class InputHandler():
         self.country = None
         self.arguments = self.arg_handler(args)
         self.show_plot = True
-        self.data = []
+        self.data = None
 
         for argument in self.arguments:
             logger.debug("%s", f"{argument = }")
@@ -89,7 +88,7 @@ class InputHandler():
                     self.end_date = argument.value
                     raise NotImplementedError
                 case "--data" | "-d":
-                    self.data.append(argument.value)
+                    self.data = argument.value
                 case "--show" | "-s":
                     self.show_plot = json.loads(argument.value.lower()) # Assert it is a boolean
 
@@ -99,14 +98,22 @@ class InputHandler():
         self.data = None if not self.data else self.data
         logger.debug("%s", f"{self.country = }, {self.start_date = }, {self.end_date = }, {self.data = }")
         self.connection = get_data.Main()
+        self.data = self.data.split("+")
+        print(self.data)
         for argument in self.data:
             logger.debug("%s", argument)
             match argument:
                 case "cs" | "cases":
                     logger.debug("%s", "Plotting Cases...")
                     self.connection.plot_cases()
+                case "re" | "reproduction":
+                    logger.debug("%s", "Plotting R_e values")
+                    self.connection.plot_re_data()
+                case "mb" | "mobility":
+                    logger.debug("%s", "Plotting mobility data")
                 case _:
                     logger.warning("%s", f"Data not found for {argument}")
+
         if self.show_plot:
             logger.debug("%s", "Showing plot...")
             self.connection.show_plot()
@@ -135,7 +142,7 @@ def main():
         InputHandler(stdin)
 
 
-def ret_input():
+def ret_input() -> str:
     print(
 """
 Usage/Syntax:
@@ -156,6 +163,7 @@ plt | plot
 
 
 def rec_until_keyboard_interrupt():
+    # InputFailure is raised if any Input is malformed/arguments do not exist
     try:
         main()
     except InputFailure:
