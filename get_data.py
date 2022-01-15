@@ -290,8 +290,10 @@ class Main:
         self.plt.xticks(size=10, rotation=90, ticks=[
             i*50 for i in range(int(len(self.data_x)/2) % 50)])
 
-    def show_plot(self):
+    def show_plot(self, exit_after=True):
         self.plt.show()
+        if exit_after:
+            exit(0)
 
     def get_avg_traffic_data(self):
         # Get average of all lists

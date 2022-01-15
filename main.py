@@ -1,12 +1,11 @@
 import json
 import logging
-from sys import argv
-from typing import Tuple
+import sys
 
 import get_data
 from config import LOG_CONFIG, LOG_LEVEL
 
-COMMANDS = ["plt", "plot"]
+COMMANDS = ["plt", "plot"] # Valid commands
 
 class InputFailure(BaseException):
     """Raised if input sequence needs to be repeated"""
@@ -33,31 +32,40 @@ class Argument:
     def __repr__(self) -> str:
         return f"Argument: {self.__name}, Value: {self.__value}"
 
+def split_input(input_string) -> tuple[str, list[str]]:
+    try:
+        command = input_string.split()[0]
+    except IndexError:
+        print("Handling IndexError")
+        main(failure=True)
+    args = input_string.split()[1:]
+    logger.debug("%s", f"COMMAND {command}")
+    logger.debug("%s", f"ARGS {args}")
+    try:
+        assert command in COMMANDS
+    except AssertionError:
+        logger.fatal("%s", f"Command invalid {command}")
+        print("Command invalid, retry")
+        main(failure=True) # Retry
+    return command, args
+
+def unpack_args(args) -> Argument(str, str):
+    """Takes a list of arguments and returns a list of tuples"""
+    unpacked_args = [
+        Argument(value, args[index+1])
+        for index, value in enumerate(args)
+        if index % 2 == 0
+        ]
+
+    return unpacked_args
+
 
 class InputHandler():
     """
     Handles User Input and dispatches command
     """
-    def __init__(self, user_in):
-        self.input = user_in
-        print("Splitting Input")
-        try:
-            print("2. Splitting Input")
-            self.command = self.input.split()[0]
-        except IndexError:
-            print("Handling IndexError")
-            self.__init__(ret_input())
-        print("How often u get called ")
-        self.args = self.input.split()[1:]
-        logger.debug("%s", f"COMMAND {self.command}")
-        logger.debug("%s", f"ARGS {self.args}")
-        print("Assert command")
-        try:
-            assert self.command in COMMANDS
-        except AssertionError:
-            logger.fatal("%s", f"Command invalid {self.command}")
-            print("Command invalid, retry")
-            self.__init__(ret_input())
+    def __init__(self, command, args):
+        self.command, self.args = command, args
 
         match self.command:
             case "plot" | "plt":
@@ -69,15 +77,15 @@ class InputHandler():
         """
         According to the usage, the passed-through arguments are supposed to be in the following order:
         [COUNTRY] [TIMEA] [TIMEB] [data]
-        where as data is a list of lines to be plotted
+        whereas data is a list of lines to be plotted
         """
 
         self.start_date = None
         self.end_date = None
         self.country = None
-        self.arguments = self.arg_handler(args)
+        self.arguments = unpack_args(args)
         self.show_plot = True
-        self.data = None
+        data_arguments = None
 
         for argument in self.arguments:
             logger.debug("%s", f"{argument = }")
@@ -91,19 +99,19 @@ class InputHandler():
                     self.end_date = argument.value
                     raise NotImplementedError
                 case "--data" | "-d":
-                    self.data = argument.value
+                    data_arguments = argument.value
                 case "--show" | "-s":
                     self.show_plot = json.loads(argument.value.lower()) # Assert it is a boolean
 
         self.country = "switzerland" if not self.country else self.country
         self.start_date = None if not self.start_date else self.start_date
         self.end_date = None if not self.end_date else self.end_date
-        self.data = None if not self.data else self.data
-        logger.debug("%s", f"{self.country = }, {self.start_date = }, {self.end_date = }, {self.data = }")
+        data_arguments = None if not data_arguments else data_arguments
+        logger.debug("%s", f"{self.country = }, {self.start_date = }, {self.end_date = }, {data_arguments = }")
         self.connection = get_data.Main()
-        self.data = self.data.split("+")
+        data_arguments = data_arguments.split("+")
 
-        for argument in self.data:
+        for argument in data_arguments:
             logger.debug("%s", argument)
             match argument:
                 case "cs" | "cases":
@@ -120,31 +128,24 @@ class InputHandler():
 
         if self.show_plot:
             logger.debug("%s", "Showing plot...")
-            self.connection.show_plot()
+            self.connection.show_plot(exit_after=True)
         else:
             logger.debug("%s", "Not showing plot")
 
-    def arg_handler(self, args) -> Argument(str, str):
-        """Takes a list of arguments and returns a list of tuples"""
-        collector = []
-        for index, value in enumerate(args):
-            if index % 2 == 0:
-                collector.append(Argument(value, args[index+1]))
-        print(f"{collector = }")
-        return collector
 
-
-def main():
-    if not argv:
-        InputHandler(ret_input())
+def main(failure=False):
+    if not sys.argv or failure:
+        command, args = ret_input()
+        InputHandler(command, args)
     else:
         stdin = ""
-        for i, arg in enumerate(argv):
+        for i, arg in enumerate(sys.argv):
             if i == 0:
                 continue
             stdin = stdin + arg + " "
         print("Handling Input from STDIN")
-        InputHandler(stdin)
+        command, args = split_input(stdin)
+        InputHandler(command, args)
 
 
 def ret_input() -> str:
@@ -167,7 +168,8 @@ def ret_input() -> str:
     except KeyboardInterrupt:
         print("\nCtrl+C pressed, exiting...")
         exit(1)
-    return user_in
+    command, args = split_input(user_in)
+    return command, args
 
 
 def rec_until_keyboard_interrupt():
