@@ -83,23 +83,19 @@ def moving_average(data, window_size=7):
 
 
 def prep_apple_mobility_data(apple_mobility, country) -> list[int, int]:
-    try:
-        default_mob_data_dict = {}
-        for key in apple_mobility:
-            default_mob_data_dict[key] = []
-    except KeyError:
-        pass
+
+    empty_mob_data_dict = {key:None for key in apple_mobility} # contains only dates
 
     # Get corresponding data rows for country:
-    indexes_of_datarows = [i for i, v in enumerate(
+    datarows_for_country = [i for i, v in enumerate(
         apple_mobility.region) if v.upper() == country.upper()]
 
     datasets = []
     # Add Values to data structure
-    for i in indexes_of_datarows:
-        mob_data_dict = default_mob_data_dict.copy()
+    for datarow in datarows_for_country:
+        mob_data_dict = empty_mob_data_dict.copy()
         for k, _ in mob_data_dict.items():
-            mob_data_dict[k] = apple_mobility.loc[i][k]
+            mob_data_dict[k] = apple_mobility.loc[datarow][k]
         datasets.append(mob_data_dict)
 
     return [
@@ -130,6 +126,10 @@ def add_nans_to_start_of_list(re, nan=DATES_RE):
         x.append(rround(i*100, 1))
     return x
 
+def _return_data_obj():
+    confirmed_df, apple_mobility, ch_lockdown_data, ch_re_data, owid_data = refresh_data.get_cached_data()
+    return Data(confirmed_df, apple_mobility, ch_lockdown_data, ch_re_data, owid_data)
+
 class Data:
     def __init__(self, confirmed_df, apple_mobility, ch_lockdown_data, ch_re_data, owid_data) -> None:
         self.confirmed_df = confirmed_df
@@ -137,6 +137,7 @@ class Data:
         self.ch_lockdown_data = ch_lockdown_data
         self.ch_re_data = ch_re_data
         self.owid_data = owid_data
+        self.confirmed_daily = None
 
         self.re_mean = None
         self.re_low = None
@@ -147,6 +148,7 @@ class Data:
     def _build_data(self):
         self.get_r_value()
         self.read_lockdown_data()
+        self.get_confirmed_daily()
 
     def get_r_value(self):
         self.ch_re_data = self.ch_re_data.loc[self.ch_re_data["geoRegion"] == "CH"]
@@ -164,11 +166,46 @@ class Data:
             self.ch_lockdown_data.Kategorisierung != "Ferien"
         ]
 
+    def get_confirmed_daily(self):
+        confirmed_daily = [0 for _ in range(2)]
+        k_minus_1 = 0
+        for index, (_, v) in enumerate(self._build_def_data().items()):
+            if index < 5:
+                confirmed_daily.append(0)
+            else:
+                confirmed_daily.append(v-k_minus_1)
+                k_minus_1 = v
+        self.confirmed_daily = confirmed_daily
+
+    def _build_def_data(self):
+        def_data = {}
+        index = self._get_index_of_datarow()
+        try:
+            for key in self.confirmed_df:
+                def_data[key] = []
+
+            for k, v in def_data.items():
+                def_data[k] = self.confirmed_df.loc[index][k]
+        except KeyError:
+            pass
+        return def_data
+
+    def _get_index_of_datarow(self):
+        try:
+            for index, _ in enumerate(self.confirmed_df.loc):
+                if self.confirmed_df.loc[index]["Country/Region"].upper() \
+                        == COUNTRY.upper():
+                    break
+        except KeyError:
+            pass
+        return index
+
+
 class Main:
     def __init__(self):
         self.__country = COUNTRY
         self.__cache = CACHE
-        self.data = self._return_data_obj()
+        self.data = _return_data_obj()
 
         self.datasets_as_xy = prep_apple_mobility_data(
             self.data.apple_mobility, self.country)
@@ -179,10 +216,6 @@ class Main:
         self.data_x = self.get_x_data()
         self.formatted = False
 
-    def _return_data_obj(self) -> Data:
-        confirmed_df, apple_mobility, ch_lockdown_data, ch_re_data, owid_data = refresh_data.get_cached_data()
-        return Data(confirmed_df, apple_mobility, ch_lockdown_data, ch_re_data, owid_data)
-
     @property
     def country(self):
         return self.__country
@@ -190,40 +223,6 @@ class Main:
     @property
     def cache(self):
         return self.__cache
-
-    def _get_index_of_datarow(self):
-        try:
-            for index, _ in enumerate(self.data.confirmed_df.loc):
-                if self.data.confirmed_df.loc[index]["Country/Region"].upper() \
-                        == self.country.upper():
-                    break
-        except KeyError:
-            pass
-        return index
-
-    def _build_def_data(self):
-        def_data = {}
-        index = self._get_index_of_datarow()
-        try:
-            for key in self.data.confirmed_df:
-                def_data[key] = []
-
-            for k, v in def_data.items():
-                def_data[k] = self.data.confirmed_df.loc[index][k]
-        except KeyError:
-            pass
-        return def_data
-
-    def get_lst(self):
-        lst = [0 for _ in range(2)]
-        k_minus_1 = 0
-        for index, (_, v) in enumerate(self._build_def_data().items()):
-            if index < 5:
-                lst.append(0)
-            else:
-                lst.append(v-k_minus_1)
-                k_minus_1 = v
-        return lst
 
     def format_plot(self):
         if not self.formatted:
@@ -237,10 +236,9 @@ class Main:
 
     def plot_cases(self):
         self.format_plot()
-        lst = self.get_lst()
         self.ax2.plot(
             self.data_x[2:],
-            moving_average(lst),
+            moving_average(self.data.confirmed_daily),
             color="blue",
             label=f"Incidence {COUNTRY}, moving average"
         )
@@ -251,7 +249,6 @@ class Main:
 
     def plot(self):
         self.format_plot()
-        lst = self.get_lst()
         logger.debug("%s", "Plotting traffic data")
         # Get average of all lists
         data_rows = []
@@ -278,12 +275,11 @@ class Main:
 
         self.ax2.plot(
             self.data_x[2:],
-            moving_average(lst),
+            moving_average(self.data.confirmed_daily),
             color="blue",
             label=f"Incidence {COUNTRY}, moving average"
         )
-        self.ax2.set_ylim(ymax=average(sorted(lst, reverse=True)[:2]))
-        self.lst = lst
+        self.ax2.set_ylim(ymax=average(sorted(self.data.confirmed_daily, reverse=True)[:2]))
         self.plt.xticks(size=10, rotation=90, ticks=[
             i*50 for i in range(len(self.data_x) % 100)])
         self.plt.yticks(size=10)
@@ -315,6 +311,9 @@ class Main:
         self.plt.xticks(size=10, rotation=90, ticks=[
             i*50 for i in range(int(len(self.data_x)/2) % 50)])
 
+    def _plot_other_re_data(self):
+        pass
+
     def show_plot(self, exit_after=True):
         self.plt.show()
         if exit_after:
@@ -332,7 +331,6 @@ class Main:
 
     def plot_traffic_data(self):
         self.format_plot()
-        lst = self.get_lst()
         logger.debug("%s", "Plotting traffic data")
         # Get average of all lists
         data_rows = []
@@ -385,7 +383,7 @@ class Main:
     def log_pearson_constant(self, avg_traffic_data):
         # Calculate pearson const.
         n_traffic_data = normalize(moving_average(avg_traffic_data, 50))
-        n_daily_incidence = normalize(moving_average(self.lst, 50))
+        n_daily_incidence = normalize(moving_average(self.data.confirmed_daily, 50))
         logger.debug(
             "%s", f"Pearson Constant: {pearsonr(n_traffic_data[2:], n_daily_incidence)}")
 
