@@ -128,13 +128,13 @@ class InputHandler():
 
         if self.show_plot:
             logger.debug("%s", "Showing plot...")
-            self.connection.show_plot(exit_after=True)
+            self.connection.show_plot(exit_after=False)
         else:
             logger.debug("%s", "Not showing plot")
 
 
 def main(failure=False):
-    if not sys.argv or failure:
+    if not sys.argv[1:] or failure:
         command, args = ret_input()
         InputHandler(command, args)
     else:
