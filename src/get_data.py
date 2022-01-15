@@ -55,12 +55,18 @@ def flatten(arr):
     # so it can be displayed on a bar graph
     return [i[0] for i in arr.tolist()]
 
+def flatten_list(arr):
+    return [item for sublist in arr for item in sublist]
+
+
 def average(num):
     # sum of an array divided by its length
     return sum(num) / len(num)
 
+
 def normalize(data):
     return [i/max(data) for i in data]
+
 
 def daily_increase(data):
     return [data if i == 0 else data[i] - data[i-1] for i in range(len(data))]
@@ -101,7 +107,7 @@ def prep_apple_mobility_data(apple_mobility, country) -> list[int, int]:
     ]
 
 
-def interp_nans(x: [float], left=None, right=None, period=None) -> [float]:
+def interp_nans(x: list[float], left=None, right=None, period=None) -> list[float]:
     # Very resource intensive
     lst = list(
         np.interp(
@@ -149,7 +155,7 @@ class Main:
 
     def _get_index_of_datarow(self):
         try:
-            for index, value in enumerate(self.confirmed_df.loc):
+            for index, _ in enumerate(self.confirmed_df.loc):
                 if self.confirmed_df.loc[index]["Country/Region"].upper() \
                         == self.country.upper():
                     break
@@ -235,20 +241,19 @@ class Main:
             match index:
                 case 0:
                     self._plot_traffic_data(self.data_x, moving_average(data_y),
-                                           color="#FE9402", label="Driving")
+                                            color="#FE9402", label="Driving")
                 case 1:
                     self._plot_traffic_data(self.data_x, data_y,
-                                           color="#FE2D55", label="Transit")
+                                            color="#FE2D55", label="Transit")
                 case 2:
                     self._plot_traffic_data(self.data_x, data_y,
-                                           color="#AF51DE", label="Walking")
+                                            color="#AF51DE", label="Walking")
                 case _:
                     self._plot_traffic_data(self.data_x, data_y,
-                                           color="black")
+                                            color="black")
         self.ax.set_ylabel(
             ' Increase of traffic routing requests in %, baseline at 100', size=20)
         self.ax.set_ylim(ymax=200)
-
 
         self.ax2.plot(
             self.data_x[2:],
@@ -318,16 +323,16 @@ class Main:
             match index:
                 case 0:
                     self._plot_traffic_data(self.data_x, moving_average(data_y),
-                                           color="#FE9402", label="Driving")
+                                            color="#FE9402", label="Driving")
                 case 1:
                     self._plot_traffic_data(self.data_x, data_y,
-                                           color="#FE2D55", label="Transit")
+                                            color="#FE2D55", label="Transit")
                 case 2:
                     self._plot_traffic_data(self.data_x, data_y,
-                                           color="#AF51DE", label="Walking")
+                                            color="#AF51DE", label="Walking")
                 case _:
                     self._plot_traffic_data(self.data_x, data_y,
-                                           color="black")
+                                            color="black")
         self.ax.set_ylabel(
             ' Increase of traffic routing requests in %, baseline at 100', size=20)
         self.ax.set_ylim(ymax=200)
@@ -336,7 +341,6 @@ class Main:
             [sum(e)/len(e) for e in zip(*data_rows)], 7)
         self.ax.plot(self.data_x, self.avg_traffic_data, color="green",
                      label="Average mobility data")
-
 
     def _plot_traffic_data(self, x, y, **kwargs):
         self.ax.plot(x, moving_average(y),
