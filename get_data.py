@@ -23,6 +23,7 @@ Traffic Data needs to be normalized, to account for weekends/days off | DONE
 -> Predict COVID Data for the next 2 weeks
 -> Predict traffic Data for the next 2 weeks
 """
+from dataclasses import dataclass
 import datetime
 import json
 import logging
@@ -122,22 +123,65 @@ def interp_nans(x: list[float], left=None, right=None, period=None) -> list[floa
 
     return [rround(i, 1) for i in lst]
 
+def add_nans_to_start_of_list(re, nan=DATES_RE):
+    # The first 26 days are not included in this dataset
+    x = [np.nan for i in range(nan)]
+    for i in re:
+        x.append(rround(i*100, 1))
+    return x
+
+class Data:
+    def __init__(self, confirmed_df, apple_mobility, ch_lockdown_data, ch_re_data, owid_data) -> None:
+        self.confirmed_df = confirmed_df
+        self.apple_mobility = apple_mobility
+        self.ch_lockdown_data = ch_lockdown_data
+        self.ch_re_data = ch_re_data
+        self.owid_data = owid_data
+
+        self.re_mean = None
+        self.re_low = None
+        self.re_high = None
+
+        self._build_data()
+
+    def _build_data(self):
+        self.get_r_value()
+        self.read_lockdown_data()
+
+    def get_r_value(self):
+        self.ch_re_data = self.ch_re_data.loc[self.ch_re_data["geoRegion"] == "CH"]
+        # self.re_date = self.data.ch_re_data.date.to_list()
+        re_mean = self.ch_re_data.median_R_mean.to_list()
+        re_high = self.ch_re_data.median_R_highHPD.to_list()
+        re_low = self.ch_re_data.median_R_lowHPD.to_list()
+        self.re_mean = add_nans_to_start_of_list(re_mean)
+        self.re_high = add_nans_to_start_of_list(re_high)
+        self.re_low = add_nans_to_start_of_list(re_low)
+
+    def read_lockdown_data(self):
+        self.ch_lockdown_data.drop('Link', axis=1, inplace=True)
+        self.ch_lockdown_data = self.ch_lockdown_data[
+            self.ch_lockdown_data.Kategorisierung != "Ferien"
+        ]
 
 class Main:
     def __init__(self):
         self.__country = COUNTRY
         self.__cache = CACHE
-        self.confirmed_df, self.apple_mobility, self.ch_lockdown_data, self.ch_re_data, self.owid_data = refresh_data.get_cached_data()
-        self.read_lockdown_data()
+        self.data = self._return_data_obj()
 
         self.datasets_as_xy = prep_apple_mobility_data(
-            self.apple_mobility, self.country)
+            self.data.apple_mobility, self.country)
 
         self.plt = plt
         self.ax = plt.gca()
         self.ax2 = self.ax.twinx()
         self.data_x = self.get_x_data()
         self.formatted = False
+
+    def _return_data_obj(self) -> Data:
+        confirmed_df, apple_mobility, ch_lockdown_data, ch_re_data, owid_data = refresh_data.get_cached_data()
+        return Data(confirmed_df, apple_mobility, ch_lockdown_data, ch_re_data, owid_data)
 
     @property
     def country(self):
@@ -147,16 +191,10 @@ class Main:
     def cache(self):
         return self.__cache
 
-    def read_lockdown_data(self):
-        self.ch_lockdown_data.drop('Link', axis=1, inplace=True)
-        self.ch_lockdown_data = self.ch_lockdown_data[
-            self.ch_lockdown_data.Kategorisierung != "Ferien"
-        ]
-
     def _get_index_of_datarow(self):
         try:
-            for index, _ in enumerate(self.confirmed_df.loc):
-                if self.confirmed_df.loc[index]["Country/Region"].upper() \
+            for index, _ in enumerate(self.data.confirmed_df.loc):
+                if self.data.confirmed_df.loc[index]["Country/Region"].upper() \
                         == self.country.upper():
                     break
         except KeyError:
@@ -167,31 +205,14 @@ class Main:
         def_data = {}
         index = self._get_index_of_datarow()
         try:
-            for key in self.confirmed_df:
+            for key in self.data.confirmed_df:
                 def_data[key] = []
 
             for k, v in def_data.items():
-                def_data[k] = self.confirmed_df.loc[index][k]
+                def_data[k] = self.data.confirmed_df.loc[index][k]
         except KeyError:
             pass
         return def_data
-
-    def get_r_value(self):
-        self.ch_re_data = self.ch_re_data.loc[self.ch_re_data["geoRegion"] == "CH"]
-        self.re_date = self.ch_re_data.date.to_list()
-        re_mean = self.ch_re_data.median_R_mean.to_list()
-        re_high = self.ch_re_data.median_R_highHPD.to_list()
-        re_low = self.ch_re_data.median_R_lowHPD.to_list()
-        self.re_mean = self.add_nans_to_start_of_list(re_mean)
-        self.re_high = self.add_nans_to_start_of_list(re_high)
-        self.re_low = self.add_nans_to_start_of_list(re_low)
-
-    def add_nans_to_start_of_list(self, re, nan=DATES_RE):
-        # The first 26 days are not included in this dataset
-        x = [np.nan for i in range(nan)]
-        for i in re:
-            x.append(rround(i*100, 1))
-        return x
 
     def get_lst(self):
         lst = [0 for _ in range(2)]
@@ -283,12 +304,11 @@ class Main:
             self._plot_other_re_data()
 
     def _plot_ch_re_data(self):
-        self.get_r_value()
-        self.ax.plot(self.re_mean)
+        self.ax.plot(self.data.re_mean)
 
-        self.ax.fill_between(self.data_x, self.re_low, self.re_mean, alpha=0.5)
-        self.ax.fill_between(self.data_x, self.re_high,
-                             self.re_mean, alpha=0.5)
+        self.ax.fill_between(self.data_x, self.data.re_low, self.data.re_mean, alpha=0.5)
+        self.ax.fill_between(self.data_x, self.data.re_high,
+                             self.data.re_mean, alpha=0.5)
 
         self.ax.set_ylabel(
             'Daily Reproduction Value (Moving Average over 7 days)', size=20)
@@ -350,8 +370,8 @@ class Main:
         logger.debug("%s", "Plotting lockdown data")
         if self.country.lower() == "switzerland":
             for index, date in enumerate(self.data_x):
-                if str(date) in list(self.ch_lockdown_data.Datum):
-                    # print(list(self.ch_lockdown_data.Datum).index(date))
+                if str(date) in list(self.data.ch_lockdown_data.Datum):
+                    # print(list(self.data.lockdown_data.Datum).index(date))
                     # print(True)
                     pass
             self.plt.axvspan(
