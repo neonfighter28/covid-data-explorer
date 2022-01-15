@@ -38,12 +38,12 @@ from scipy.stats.stats import pearsonr
 from tqdm import tqdm
 
 import refresh_data
-from config import CACHE, COUNTRY, LOG_CONFIG, DATES_RE, LOG_LEVEL
+from config import CACHE, LOG_CONFIG, DATES_RE, LOG_LEVEL
 
 plt.style.use('seaborn-poster')
 timestart = time.perf_counter()
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("__main__")
 
 
 @cache
@@ -121,23 +121,24 @@ def interp_nans(x: list[float], left=None, right=None, period=None) -> list[floa
 
 def add_nans_to_start_of_list(re, nan=DATES_RE):
     # The first 26 days are not included in this dataset
-    x = [np.nan for i in range(nan)]
+    x = [np.nan for _ in range(nan)]
     for i in re:
         x.append(rround(i*100, 1))
     return x
 
-def _return_data_obj():
-    confirmed_df, apple_mobility, ch_lockdown_data, ch_re_data, owid_data = refresh_data.get_cached_data()
-    return Data(confirmed_df, apple_mobility, ch_lockdown_data, ch_re_data, owid_data)
-
 class Data:
-    def __init__(self, confirmed_df, apple_mobility, ch_lockdown_data, ch_re_data, owid_data) -> None:
-        self.confirmed_df = confirmed_df
-        self.apple_mobility = apple_mobility
-        self.ch_lockdown_data = ch_lockdown_data
-        self.ch_re_data = ch_re_data
-        self.owid_data = owid_data
+    """
+    This Class handles all data
+    """
+    def __init__(self, country="switzerland", cache="True") -> None:
+        self.country = country
+        self.cache = cache
+        logger.debug("%s", f"{self.country = }, {self.cache = }")
+
+        self.confirmed_df, self.apple_mobility, self.ch_lockdown_data, self.ch_re_data, self.owid_data = refresh_data.get_cached_data()
         self.confirmed_daily = None
+        self.datasets_as_xy = None
+        self.avg_traffic_data = None
 
         self.re_mean = None
         self.re_low = None
@@ -149,6 +150,11 @@ class Data:
         self.get_r_value()
         self.read_lockdown_data()
         self.get_confirmed_daily()
+        self.datasets_as_xy = prep_apple_mobility_data(
+            self.apple_mobility, self.country)
+
+        # Depends on datasets_as_xy
+        self.get_avg_traffic_data()
 
     def get_r_value(self):
         self.ch_re_data = self.ch_re_data.loc[self.ch_re_data["geoRegion"] == "CH"]
@@ -194,44 +200,42 @@ class Data:
         try:
             for index, _ in enumerate(self.confirmed_df.loc):
                 if self.confirmed_df.loc[index]["Country/Region"].upper() \
-                        == COUNTRY.upper():
+                        == self.country.upper():
                     break
         except KeyError:
             pass
         return index
 
+    def get_avg_traffic_data(self):
+        # Get average of all lists
+        data_rows = [moving_average(interp_nans(list(zip(*row))[1])) for row in self.datasets_as_xy]
+
+        self.avg_traffic_data = moving_average(
+            [sum(e)/len(e) for e in zip(*data_rows)])
+
 
 class Main:
-    def __init__(self):
-        self.__country = COUNTRY
-        self.__cache = CACHE
-        self.data = _return_data_obj()
-
-        self.datasets_as_xy = prep_apple_mobility_data(
-            self.data.apple_mobility, self.country)
+    def __init__(self, **kwargs):
+        self.data = Data(**kwargs)
 
         self.plt = plt
         self.ax = plt.gca()
         self.ax2 = self.ax.twinx()
         self.data_x = self.get_x_data()
+
         self.formatted = False
 
-    @property
-    def country(self):
-        return self.__country
-
-    @property
-    def cache(self):
-        return self.__cache
-
     def format_plot(self):
+        """
+        Format the plot as a matplotlib plot
+        """
         if not self.formatted:
             self.plt.grid()
             self.plt.xlabel('Days Since 1/22/2020', size=15)
             self.formatted = True
 
     def get_x_data(self):
-        for value in self.datasets_as_xy:
+        for value in self.data.datasets_as_xy:
             return list(zip(*value))[0]
 
     def plot_cases(self):
@@ -240,7 +244,7 @@ class Main:
             self.data_x[2:],
             moving_average(self.data.confirmed_daily),
             color="blue",
-            label=f"Incidence {COUNTRY}, moving average"
+            label=f"Incidence {self.data.country}, moving average"
         )
         self.ax.set_ylabel(
             'Daily Incidence (Moving Average over 7 days)', size=20)
@@ -252,7 +256,7 @@ class Main:
         logger.debug("%s", "Plotting traffic data")
         # Get average of all lists
         data_rows = []
-        for index, value in enumerate(self.datasets_as_xy):
+        for index, value in enumerate(self.data.datasets_as_xy):
             data_y = interp_nans(list(zip(*value))[1])
             data_rows.append(moving_average(data_y, 7))
 
@@ -277,7 +281,7 @@ class Main:
             self.data_x[2:],
             moving_average(self.data.confirmed_daily),
             color="blue",
-            label=f"Incidence {COUNTRY}, moving average"
+            label=f"Incidence {self.data.country}, moving average"
         )
         self.ax2.set_ylim(ymax=average(sorted(self.data.confirmed_daily, reverse=True)[:2]))
         self.plt.xticks(size=10, rotation=90, ticks=[
@@ -290,11 +294,10 @@ class Main:
         self.ax2.legend()
         logger.info(print(time.perf_counter() - timestart))
         # Calculate pearson const.
-        self.get_avg_traffic_data()
-        self.log_pearson_constant(avg_traffic_data=self.avg_traffic_data)
+        self.log_pearson_constant(avg_traffic_data=self.data.avg_traffic_data)
 
     def plot_re_data(self):
-        if self.__country == "switzerland":
+        if self.data.country == "switzerland":
             self._plot_ch_re_data()
         else:
             self._plot_other_re_data()
@@ -319,22 +322,12 @@ class Main:
         if exit_after:
             exit(0)
 
-    def get_avg_traffic_data(self):
-        # Get average of all lists
-        data_rows = []
-        for index, value in enumerate(self.datasets_as_xy):
-            data_y = interp_nans(list(zip(*value))[1])
-            data_rows.append(moving_average(data_y, 7))
-
-        self.avg_traffic_data = moving_average(
-            [sum(e)/len(e) for e in zip(*data_rows)], 7)
-
     def plot_traffic_data(self):
         self.format_plot()
         logger.debug("%s", "Plotting traffic data")
         # Get average of all lists
         data_rows = []
-        for index, value in enumerate(self.datasets_as_xy):
+        for index, value in enumerate(self.data.datasets_as_xy):
             data_y = interp_nans(list(zip(*value))[1])
             data_rows.append(moving_average(data_y, 7))
 
@@ -366,7 +359,7 @@ class Main:
 
     def plot_lockdown_data(self):
         logger.debug("%s", "Plotting lockdown data")
-        if self.country.lower() == "switzerland":
+        if self.data.country.lower() == "switzerland":
             for index, date in enumerate(self.data_x):
                 if str(date) in list(self.data.ch_lockdown_data.Datum):
                     # print(list(self.data.lockdown_data.Datum).index(date))

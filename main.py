@@ -108,7 +108,7 @@ class InputHandler():
         self.end_date = None if not self.end_date else self.end_date
         data_arguments = None if not data_arguments else data_arguments
         logger.debug("%s", f"{self.country = }, {self.start_date = }, {self.end_date = }, {data_arguments = }")
-        self.connection = get_data.Main()
+        self.connection = get_data.Main(country=self.country, )
         data_arguments = data_arguments.split("+")
 
         for argument in data_arguments:
