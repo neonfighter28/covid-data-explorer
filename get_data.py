@@ -23,22 +23,22 @@ Traffic Data needs to be normalized, to account for weekends/days off | DONE
 -> Predict COVID Data for the next 2 weeks
 -> Predict traffic Data for the next 2 weeks
 """
-from dataclasses import dataclass
-import datetime
-import json
+
+# TODO: Add Lockdown markers to plot
+# TODO: Add R_e data for all countries
+
 import logging
+import sys
 import time
 from functools import cache
-from sys import argv
 
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from scipy.stats.stats import pearsonr
-from tqdm import tqdm
 
 import refresh_data
-from config import CACHE, LOG_CONFIG, DATES_RE, LOG_LEVEL
+from config import DATES_RE, LOG_CONFIG, LOG_LEVEL
 
 plt.style.use('seaborn-poster')
 timestart = time.perf_counter()
@@ -104,6 +104,7 @@ def prep_apple_mobility_data(apple_mobility, country) -> list[int, int]:
     ]
 
 
+@cache
 def interp_nans(x: list[float], left=None, right=None, period=None) -> list[float]:
     # Very resource intensive
     lst = list(
@@ -147,16 +148,16 @@ class Data:
         self._build_data()
 
     def _build_data(self):
-        self.get_r_value()
+        self.set_re_values()
         self.read_lockdown_data()
-        self.get_confirmed_daily()
+        self.confirmed_daily = self.get_confirmed_daily()
         self.datasets_as_xy = prep_apple_mobility_data(
             self.apple_mobility, self.country)
 
         # Depends on datasets_as_xy
-        self.get_avg_traffic_data()
+        self.avg_traffic_data = self.get_avg_traffic_data()
 
-    def get_r_value(self):
+    def set_re_values(self):
         self.ch_re_data = self.ch_re_data.loc[self.ch_re_data["geoRegion"] == "CH"]
         # self.re_date = self.data.ch_re_data.date.to_list()
         re_mean = self.ch_re_data.median_R_mean.to_list()
@@ -173,48 +174,42 @@ class Data:
         ]
 
     def get_confirmed_daily(self):
-        confirmed_daily = [0 for _ in range(2)]
+        confirmed_daily = [0 for _ in range(4)]
         k_minus_1 = 0
-        for index, (_, v) in enumerate(self._build_def_data().items()):
-            if index < 5:
-                confirmed_daily.append(0)
-            else:
-                confirmed_daily.append(v-k_minus_1)
-                k_minus_1 = v
-        self.confirmed_daily = confirmed_daily
+        for index, (_, value) in enumerate(self._build_def_data().items()):
+            if index < 2: continue # First two values are text
+            confirmed_daily.append(value - k_minus_1)
+            k_minus_1 = value
+        return confirmed_daily
 
     def _build_def_data(self):
-        def_data = {}
         index = self._get_index_of_datarow()
         try:
-            for key in self.confirmed_df:
-                def_data[key] = []
-
-            for k, v in def_data.items():
-                def_data[k] = self.confirmed_df.loc[index][k]
+            def_data = {key:self.confirmed_df.loc[index][key] for key in self.confirmed_df}
         except KeyError:
             pass
         return def_data
 
     def _get_index_of_datarow(self):
-        try:
-            for index, _ in enumerate(self.confirmed_df.loc):
-                if self.confirmed_df.loc[index]["Country/Region"].upper() \
-                        == self.country.upper():
-                    break
-        except KeyError:
-            pass
-        return index
+        # Might throw KeyError?
+        for index, _ in enumerate(self.confirmed_df.loc):
+            if self.confirmed_df.loc[index]["Country/Region"].upper() \
+                    == self.country.upper():
+                return index
+
 
     def get_avg_traffic_data(self):
         # Get average of all lists
         data_rows = [moving_average(interp_nans(list(zip(*row))[1])) for row in self.datasets_as_xy]
 
-        self.avg_traffic_data = moving_average(
-            [sum(e)/len(e) for e in zip(*data_rows)])
+        return moving_average([sum(e)/len(e) for e in zip(*data_rows)])
 
 
-class Main:
+class PlotHandler:
+    """
+    Handles Plotting
+    """
+
     def __init__(self, **kwargs):
         self.data = Data(**kwargs)
 
@@ -230,7 +225,6 @@ class Main:
         Format the plot as a matplotlib plot
         """
         if not self.formatted:
-            self.plt.grid()
             self.plt.xlabel('Days Since 1/22/2020', size=15)
             self.formatted = True
 
@@ -240,61 +234,30 @@ class Main:
 
     def plot_cases(self):
         self.format_plot()
+        self.ax2.set_ylim(ymax=average(sorted(self.data.confirmed_daily, reverse=True)[:2]))
         self.ax2.plot(
             self.data_x[2:],
             moving_average(self.data.confirmed_daily),
             color="blue",
             label=f"Incidence {self.data.country}, moving average"
         )
+        self.ax2.grid(color="blue")
         self.ax.set_ylabel(
             'Daily Incidence (Moving Average over 7 days)', size=20)
         self.plt.xticks(size=10, rotation=0, ticks=[
             i*50 for i in range(int(len(self.data_x)/2) % 50)])
+        self.ax.legend()
+        self.ax2.legend()
 
     def plot(self):
         self.format_plot()
-        logger.debug("%s", "Plotting traffic data")
-        # Get average of all lists
-        data_rows = []
-        for index, value in enumerate(self.data.datasets_as_xy):
-            data_y = interp_nans(list(zip(*value))[1])
-            data_rows.append(moving_average(data_y, 7))
 
-            match index:
-                case 0:
-                    self._plot_traffic_data(self.data_x, moving_average(data_y),
-                                            color="#FE9402", label="Driving")
-                case 1:
-                    self._plot_traffic_data(self.data_x, data_y,
-                                            color="#FE2D55", label="Transit")
-                case 2:
-                    self._plot_traffic_data(self.data_x, data_y,
-                                            color="#AF51DE", label="Walking")
-                case _:
-                    self._plot_traffic_data(self.data_x, data_y,
-                                            color="black")
-        self.ax.set_ylabel(
-            ' Increase of traffic routing requests in %, baseline at 100', size=20)
-        self.ax.set_ylim(ymax=200)
-
-        self.ax2.plot(
-            self.data_x[2:],
-            moving_average(self.data.confirmed_daily),
-            color="blue",
-            label=f"Incidence {self.data.country}, moving average"
-        )
-        self.ax2.set_ylim(ymax=average(sorted(self.data.confirmed_daily, reverse=True)[:2]))
-        self.plt.xticks(size=10, rotation=90, ticks=[
-            i*50 for i in range(len(self.data_x) % 100)])
         self.plt.yticks(size=10)
         self.plt.grid()
         self.plot_re_data()
         self.plot_lockdown_data()
         self.ax.legend()
         self.ax2.legend()
-        logger.info(print(time.perf_counter() - timestart))
-        # Calculate pearson const.
-        self.log_pearson_constant(avg_traffic_data=self.data.avg_traffic_data)
 
     def plot_re_data(self):
         if self.data.country == "switzerland":
@@ -303,7 +266,9 @@ class Main:
             self._plot_other_re_data()
 
     def _plot_ch_re_data(self):
+        self.ax.set_ylim(ymax=200)
         self.ax.plot(self.data.re_mean)
+        self.ax.grid(color="cyan", axis="y", alpha=0.5)
 
         self.ax.fill_between(self.data_x, self.data.re_low, self.data.re_mean, alpha=0.5)
         self.ax.fill_between(self.data_x, self.data.re_high,
@@ -320,7 +285,7 @@ class Main:
     def show_plot(self, exit_after=True):
         self.plt.show()
         if exit_after:
-            exit(0)
+            sys.exit(0)
 
     def plot_traffic_data(self):
         self.format_plot()
@@ -373,9 +338,9 @@ class Main:
 
             self.plt.axvspan(279, 402, color="red", alpha=0.5)
 
-    def log_pearson_constant(self, avg_traffic_data):
+    def log_pearson_constant(self):
         # Calculate pearson const.
-        n_traffic_data = normalize(moving_average(avg_traffic_data, 50))
+        n_traffic_data = normalize(moving_average(self.data.avg_traffic_data, 50))
         n_daily_incidence = normalize(moving_average(self.data.confirmed_daily, 50))
         logger.debug(
             "%s", f"Pearson Constant: {pearsonr(n_traffic_data[2:], n_daily_incidence)}")
@@ -389,7 +354,9 @@ if __name__ == "__main__":
     logger.addHandler(fh)
     timestart = time.perf_counter()
 
-    cls = Main()
+    cls = PlotHandler()
 
-    cls.plot()
+    cls.plot_cases()
+    cls.plot_re_data()
+    cls.plot_traffic_data()
     cls.show_plot()
