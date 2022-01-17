@@ -136,7 +136,11 @@ class Data:
         self.cache = cache
         logger.debug("%s", f"{self.country = }, {self.cache = }")
 
-        self.confirmed_df, self.apple_mobility, self.ch_lockdown_data, self.ch_re_data, self.owid_data = refresh_data.get_cached_data()
+        self.confirmed_df, \
+            self.apple_mobility, \
+                self.ch_lockdown_data, \
+                    self.ch_re_data, \
+                        self.owid_data = refresh_data.get_cached_data()
         self.confirmed_daily = None
         self.datasets_as_xy = None
         self.avg_traffic_data = None
@@ -313,9 +317,7 @@ class PlotHandler:
             ' Increase of traffic routing requests in %, baseline at 100', size=20)
         self.ax.set_ylim(ymax=200)
 
-        self.avg_traffic_data = moving_average(
-            [sum(e)/len(e) for e in zip(*data_rows)], 7)
-        self.ax.plot(self.data_x, self.avg_traffic_data, color="green",
+        self.ax.plot(self.data_x, self.data.avg_traffic_data, color="green",
                      label="Average mobility data")
 
     def _plot_traffic_data(self, x, y, **kwargs):

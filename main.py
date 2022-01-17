@@ -101,7 +101,7 @@ class InputHandler():
                 case "--data" | "-d":
                     data_arguments = argument.value
                 case "--show" | "-s":
-                    self.show_plot = json.loads(argument.value.lower()) # Assert it is a boolean
+                    self.show_plot = json.loads(argument.value.lower()) # Load string as bool
 
         self.country = "switzerland" if not self.country else self.country
         self.start_date = None if not self.start_date else self.start_date
