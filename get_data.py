@@ -25,17 +25,15 @@ Traffic Data needs to be normalized, to account for weekends/days off | DONE
 """
 
 # TODO: Add Lockdown markers to plot
-# TODO: Add R_e data for all countries
 
 import logging
 import sys
 import time
 from functools import cache
-import matplotlib
 
+import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
-import pandas as pd
 from scipy.stats.stats import pearsonr
 
 import refresh_data
@@ -200,7 +198,7 @@ class Data:
             return list(zip(*value))[0]
 
     def get_confirmed_daily(self):
-        confirmed_daily = [0 for _ in range(4)]
+        confirmed_daily = [0 for _ in range(6)]
         k_minus_1 = 0
         for index, (_, value) in enumerate(self._build_def_data().items()):
             if index < 2:
@@ -276,7 +274,7 @@ class PlotHandler:
 
         self.formatted = False
 
-    def format_plot(self):
+    def format_plot(self, case=None):
         """
         Format the plot as a matplotlib plot
         """
@@ -286,28 +284,24 @@ class PlotHandler:
                 i*50 for i in range(int(len(self.data_x)/2) % 50)])
             self.formatted = True
 
+    def _format_axis(self, axis, case):
+        match case:
+            case "re_data":
+                axis.set_ylim(ymin=0, ymax=200)
+
 
     def plot_cases(self):
         self.format_plot()
 
         axis = AxisHandler.get_axis()
-        axis.set_ylim(ymax=average(
-            sorted(self.data.confirmed_daily, reverse=True)[:2]))
+        axis.set_ylim(ymax=average(sorted(self.data.confirmed_daily, reverse=True)[:2]))
         axis.plot(
-            self.data_x[2:],
+            self.data_x,
             moving_average(self.data.confirmed_daily),
             color="blue",
             label=f"Incidence {self.data.country}, moving average",
         )
         axis.grid(color="blue", axis="y", alpha=0.1)
-
-    def plot(self):
-        self.format_plot()
-
-        PlotHandler.plot.yticks(size=10)
-        PlotHandler.plot.grid()
-        self.plot_re_data()
-        self.plot_lockdown_data()
 
     def plot_re_data(self):
         if self.data.country == "switzerland":
@@ -318,9 +312,9 @@ class PlotHandler:
     def _plot_ch_re_data(self):
         self.format_plot()
         axis = AxisHandler.get_axis()
+        self._format_axis(axis, "re_data")
         axis.set_ylim(ymin=0, ymax=200)
-        axis.plot(self.data.re_mean,
-                  label='Daily Reproduction Value smoothed for Switzerland')
+        axis.plot(self.data.re_mean, label='Daily Reproduction Value smoothed for Switzerland')
         axis.grid(color="cyan", axis="y", alpha=0.5)
 
         axis.fill_between(self.data_x, self.data.re_low,
@@ -346,7 +340,7 @@ class PlotHandler:
         self.format_plot()
         axis = AxisHandler.get_axis()
         PlotHandler.plot.xticks(size=10, rotation=90, ticks=[
-            i*50 for i in range(int(len(self.data_x)/2) % 50)])
+            i*25 for i in range(int(len(self.data_x)/2) % 100)])
         logger.debug("%s", "Plotting traffic data")
         # Get average of all lists
         data_rows = []

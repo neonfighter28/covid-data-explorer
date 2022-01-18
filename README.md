@@ -4,8 +4,8 @@
 
 ### Endprodukt
 
-    TUI in welchem die Darstellung von COVID Daten als Graph, korrelierend zu verschiedenen Daten von anderen Datensets.
-    OOP: Verschiedene Objekte
+    TUI welches die Darstellung von COVID Daten als Graph, korrelierend zu verschiedenen Daten von anderen Datensets, ermöglicht.
+    OOP: Verschiedene ObjHandlers
 
 ### Layer-Based Design
 
