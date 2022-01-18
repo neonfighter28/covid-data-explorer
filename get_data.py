@@ -104,7 +104,6 @@ def prep_apple_mobility_data(apple_mobility, country) -> list[int, int]:
     ]
 
 
-@cache
 def interp_nans(x: list[float], left=None, right=None, period=None) -> list[float]:
     # Very resource intensive
     lst = list(
@@ -144,6 +143,7 @@ class Data:
         self.confirmed_daily = None
         self.datasets_as_xy = None
         self.avg_traffic_data = None
+        self.re_value_other = None
 
         self.re_mean = None
         self.re_low = None
@@ -152,7 +152,8 @@ class Data:
         self._build_data()
 
     def _build_data(self):
-        self.set_re_values()
+        self.set_re_values_ch()
+        self.set_re_value_other()
         self.read_lockdown_data()
         self.confirmed_daily = self.get_confirmed_daily()
         self.datasets_as_xy = prep_apple_mobility_data(
@@ -161,7 +162,7 @@ class Data:
         # Depends on datasets_as_xy
         self.avg_traffic_data = self.get_avg_traffic_data()
 
-    def set_re_values(self):
+    def set_re_values_ch(self):
         self.ch_re_data = self.ch_re_data.loc[self.ch_re_data["geoRegion"] == "CH"]
         # self.re_date = self.data.ch_re_data.date.to_list()
         re_mean = self.ch_re_data.median_R_mean.to_list()
@@ -170,6 +171,14 @@ class Data:
         self.re_mean = add_nans_to_start_of_list(re_mean)
         self.re_high = add_nans_to_start_of_list(re_high)
         self.re_low = add_nans_to_start_of_list(re_low)
+
+    def set_re_value_other(self):
+        capitalized_country = self.country[:1].upper() + self.country[1:]
+        logger.debug("%s", f"{capitalized_country = }")
+        self.re_value_other = self.owid_data[self.owid_data.location == capitalized_country]
+        self.re_value_other = self.re_value_other.reproduction_rate.to_list()
+        self.re_value_other = [i*100 for i in self.re_value_other]
+
 
     def read_lockdown_data(self):
         self.ch_lockdown_data.drop('Link', axis=1, inplace=True)
@@ -208,19 +217,35 @@ class Data:
 
         return moving_average([sum(e)/len(e) for e in zip(*data_rows)])
 
+class AxisHandler:
+    _axis = []
+
+    @staticmethod
+    def get_axis():
+        if AxisHandler._axis == []:
+            axis = PlotHandler.plot.gca()
+            AxisHandler._axis.append(axis)
+            return axis
+
+        new_ax = AxisHandler._axis[-1].twinx()
+        AxisHandler._axis.append(new_ax)
+        return new_ax
 
 class PlotHandler:
     """
     Handles Plotting
     """
+    plot = None
+
 
     def __init__(self, **kwargs):
         self.data = Data(**kwargs)
 
-        self.plt = plt
-        self.ax = plt.gca()
-        self.ax2 = self.ax.twinx()
+        PlotHandler.plot = plt
+        self.ax = AxisHandler.get_axis()
+        self.ax2 = AxisHandler.get_axis()
         self.data_x = self.get_x_data()
+        self.ax_handler = AxisHandler()
 
         self.formatted = False
 
@@ -229,7 +254,7 @@ class PlotHandler:
         Format the plot as a matplotlib plot
         """
         if not self.formatted:
-            self.plt.xlabel('Days Since 1/22/2020', size=15)
+            PlotHandler.plot.xlabel('Days Since 1/22/2020', size=15)
             self.formatted = True
 
     def get_x_data(self):
@@ -248,7 +273,7 @@ class PlotHandler:
         self.ax2.grid(color="blue")
         self.ax.set_ylabel(
             'Daily Incidence (Moving Average over 7 days)', size=20)
-        self.plt.xticks(size=10, rotation=0, ticks=[
+        PlotHandler.plot.xticks(size=10, rotation=0, ticks=[
             i*50 for i in range(int(len(self.data_x)/2) % 50)])
         self.ax.legend()
         self.ax2.legend()
@@ -256,8 +281,8 @@ class PlotHandler:
     def plot(self):
         self.format_plot()
 
-        self.plt.yticks(size=10)
-        self.plt.grid()
+        PlotHandler.plot.yticks(size=10)
+        PlotHandler.plot.grid()
         self.plot_re_data()
         self.plot_lockdown_data()
         self.ax.legend()
@@ -270,7 +295,7 @@ class PlotHandler:
             self._plot_other_re_data()
 
     def _plot_ch_re_data(self):
-        self.ax.set_ylim(ymax=200)
+        self.ax.set_ylim(ymin=0, ymax=200)
         self.ax.plot(self.data.re_mean)
         self.ax.grid(color="cyan", axis="y", alpha=0.5)
 
@@ -280,19 +305,24 @@ class PlotHandler:
 
         self.ax.set_ylabel(
             'Daily Reproduction Value (Moving Average over 7 days)', size=20)
-        self.plt.xticks(size=10, rotation=90, ticks=[
+        PlotHandler.plot.xticks(size=10, rotation=90, ticks=[
             i*50 for i in range(int(len(self.data_x)/2) % 50)])
 
     def _plot_other_re_data(self):
+        self.format_plot()
+        self.ax.set_ylim(ymin=0, ymax=200)
+        self.ax.plot(self.data.re_value_other)
         pass
 
     def show_plot(self, exit_after=True):
-        self.plt.show()
+        PlotHandler.plot.show()
         if exit_after:
             sys.exit(0)
 
     def plot_traffic_data(self):
         self.format_plot()
+        PlotHandler.plot.xticks(size=10, rotation=90, ticks=[
+            i*50 for i in range(int(len(self.data_x)/2) % 50)])
         logger.debug("%s", "Plotting traffic data")
         # Get average of all lists
         data_rows = []
@@ -332,13 +362,13 @@ class PlotHandler:
                     # print(list(self.data.lockdown_data.Datum).index(date))
                     # print(True)
                     pass
-            self.plt.axvspan(
+            PlotHandler.plot.axvspan(
                 63,  # 16.03.20
                 119,
                 color='red', alpha=0.5
             )
 
-            self.plt.axvspan(279, 402, color="red", alpha=0.5)
+            PlotHandler.plot.axvspan(279, 402, color="red", alpha=0.5)
 
     def log_pearson_constant(self):
         # Calculate pearson const.
