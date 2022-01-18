@@ -152,6 +152,7 @@ class Data:
         self._build_data()
 
     def _build_data(self):
+        self.capitalized_country = self.get_capitalized_country()
         self.set_re_values_ch()
         self.set_re_value_other()
         self.read_lockdown_data()
@@ -173,11 +174,13 @@ class Data:
         self.re_low = add_nans_to_start_of_list(re_low)
 
     def set_re_value_other(self):
-        capitalized_country = self.country[:1].upper() + self.country[1:]
-        logger.debug("%s", f"{capitalized_country = }")
-        self.re_value_other = self.owid_data[self.owid_data.location == capitalized_country]
+        self.re_value_other = self.owid_data[self.owid_data.location == self.capitalized_country]
         self.re_value_other = self.re_value_other.reproduction_rate.to_list()
         self.re_value_other = [i*100 for i in self.re_value_other]
+
+
+    def get_capitalized_country(self):
+        return self.country[:1].upper() + self.country[1:]
 
 
     def read_lockdown_data(self):
@@ -242,8 +245,7 @@ class PlotHandler:
         self.data = Data(**kwargs)
 
         PlotHandler.plot = plt
-        self.ax = AxisHandler.get_axis()
-        self.ax2 = AxisHandler.get_axis()
+
         self.data_x = self.get_x_data()
         self.ax_handler = AxisHandler()
 
@@ -255,6 +257,8 @@ class PlotHandler:
         """
         if not self.formatted:
             PlotHandler.plot.xlabel('Days Since 1/22/2020', size=15)
+            PlotHandler.plot.xticks(size=10, rotation=90, ticks=[
+                i*50 for i in range(int(len(self.data_x)/2) % 50)])
             self.formatted = True
 
     def get_x_data(self):
@@ -263,20 +267,19 @@ class PlotHandler:
 
     def plot_cases(self):
         self.format_plot()
-        self.ax2.set_ylim(ymax=average(sorted(self.data.confirmed_daily, reverse=True)[:2]))
-        self.ax2.plot(
+
+        AXIS = AxisHandler.get_axis()
+        AXIS.set_ylim(ymax=average(sorted(self.data.confirmed_daily, reverse=True)[:2]))
+        AXIS.plot(
             self.data_x[2:],
             moving_average(self.data.confirmed_daily),
             color="blue",
             label=f"Incidence {self.data.country}, moving average"
         )
-        self.ax2.grid(color="blue")
-        self.ax.set_ylabel(
+        AXIS.grid(color="blue")
+        AXIS.set_ylabel(
             'Daily Incidence (Moving Average over 7 days)', size=20)
-        PlotHandler.plot.xticks(size=10, rotation=0, ticks=[
-            i*50 for i in range(int(len(self.data_x)/2) % 50)])
-        self.ax.legend()
-        self.ax2.legend()
+        AXIS.legend()
 
     def plot(self):
         self.format_plot()
@@ -285,8 +288,6 @@ class PlotHandler:
         PlotHandler.plot.grid()
         self.plot_re_data()
         self.plot_lockdown_data()
-        self.ax.legend()
-        self.ax2.legend()
 
     def plot_re_data(self):
         if self.data.country == "switzerland":
@@ -295,24 +296,23 @@ class PlotHandler:
             self._plot_other_re_data()
 
     def _plot_ch_re_data(self):
-        self.ax.set_ylim(ymin=0, ymax=200)
-        self.ax.plot(self.data.re_mean)
-        self.ax.grid(color="cyan", axis="y", alpha=0.5)
+        self.format_plot()
+        AXIS = AxisHandler.get_axis()
+        AXIS.set_ylim(ymin=0, ymax=200)
+        AXIS.plot(self.data.re_mean, label='Daily Reproduction Value smoothed for Switzerland')
+        AXIS.grid(color="cyan", axis="y", alpha=0.5)
 
-        self.ax.fill_between(self.data_x, self.data.re_low, self.data.re_mean, alpha=0.5)
-        self.ax.fill_between(self.data_x, self.data.re_high,
+        AXIS.fill_between(self.data_x, self.data.re_low, self.data.re_mean, alpha=0.5)
+        AXIS.fill_between(self.data_x, self.data.re_high,
                              self.data.re_mean, alpha=0.5)
-
-        self.ax.set_ylabel(
-            'Daily Reproduction Value (Moving Average over 7 days)', size=20)
-        PlotHandler.plot.xticks(size=10, rotation=90, ticks=[
-            i*50 for i in range(int(len(self.data_x)/2) % 50)])
+        AXIS.legend()
 
     def _plot_other_re_data(self):
         self.format_plot()
-        self.ax.set_ylim(ymin=0, ymax=200)
-        self.ax.plot(self.data.re_value_other)
-        pass
+        AXIS = AxisHandler.get_axis()
+        AXIS.set_ylim(ymin=0, ymax=200)
+        AXIS.plot(self.data.re_value_other, label=f"Daily Reproduction Value smoothed for {self.data.country}")
+        AXIS.legend()
 
     def show_plot(self, exit_after=True):
         PlotHandler.plot.show()
@@ -321,6 +321,7 @@ class PlotHandler:
 
     def plot_traffic_data(self):
         self.format_plot()
+        AXIS = AxisHandler.get_axis()
         PlotHandler.plot.xticks(size=10, rotation=90, ticks=[
             i*50 for i in range(int(len(self.data_x)/2) % 50)])
         logger.debug("%s", "Plotting traffic data")
@@ -332,26 +333,26 @@ class PlotHandler:
 
             match index:
                 case 0:
-                    self._plot_traffic_data(self.data_x, moving_average(data_y),
+                    self._plot_traffic_data(AXIS, self.data_x, moving_average(data_y),
                                             color="#FE9402", label="Driving")
                 case 1:
-                    self._plot_traffic_data(self.data_x, data_y,
+                    self._plot_traffic_data(AXIS, self.data_x, data_y,
                                             color="#FE2D55", label="Transit")
                 case 2:
-                    self._plot_traffic_data(self.data_x, data_y,
+                    self._plot_traffic_data(AXIS, self.data_x, data_y,
                                             color="#AF51DE", label="Walking")
                 case _:
-                    self._plot_traffic_data(self.data_x, data_y,
+                    self._plot_traffic_data(AXIS, self.data_x, data_y,
                                             color="black")
-        self.ax.set_ylabel(
+        AXIS.set_ylabel(
             ' Increase of traffic routing requests in %, baseline at 100', size=20)
-        self.ax.set_ylim(ymax=200)
+        AXIS.set_ylim(ymax=200)
 
-        self.ax.plot(self.data_x, self.data.avg_traffic_data, color="green",
+        AXIS.plot(self.data_x, self.data.avg_traffic_data, color="green",
                      label="Average mobility data")
 
-    def _plot_traffic_data(self, x, y, **kwargs):
-        self.ax.plot(x, moving_average(y),
+    def _plot_traffic_data(self, AXIS, x, y, **kwargs):
+        AXIS.plot(x, moving_average(y),
                      alpha=0.5, **kwargs)
 
     def plot_lockdown_data(self):
