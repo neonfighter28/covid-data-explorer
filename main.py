@@ -51,13 +51,16 @@ def split_input(input_string) -> tuple[str, list[str]]:
 
 def unpack_args(args) -> Argument(str, str):
     """Takes a list of arguments and returns a list of tuples"""
-    unpacked_args = [
-        Argument(value, args[index+1])
-        for index, value in enumerate(args)
-        if index % 2 == 0
-        ]
+    try:
+        unpacked_args = [
+            Argument(value, args[index+1])
+            for index, value in enumerate(args)
+            if index % 2 == 0
+            ]
 
-    return unpacked_args
+        return unpacked_args
+    except IndexError as exc:
+        raise InputFailure from exc
 
 
 class InputHandler():
@@ -167,7 +170,7 @@ def ret_input() -> str:
         user_in = input("covid-sets >>>> ")
     except KeyboardInterrupt:
         print("\nCtrl+C pressed, exiting...")
-        exit(1)
+        sys.exit(1)
     command, args = split_input(user_in)
     return command, args
 

@@ -44,6 +44,9 @@ timestart = time.perf_counter()
 
 logger = logging.getLogger("__main__")
 
+class CountryNotFound(BaseException):
+    """Country wasn't found"""
+
 
 @cache
 def rround(*args, **kwargs):
@@ -198,7 +201,7 @@ class Data:
             return list(zip(*value))[0]
 
     def get_confirmed_daily(self):
-        confirmed_daily = [0 for _ in range(6)]
+        confirmed_daily = [0 for _ in range(3)]
         k_minus_1 = 0
         for index, (_, value) in enumerate(self._build_def_data().items()):
             if index < 2:
@@ -218,10 +221,14 @@ class Data:
 
     def _get_index_of_datarow(self):
         # Might throw KeyError?
-        for index, _ in enumerate(self.confirmed_df.loc):
-            if self.confirmed_df.loc[index]["Country/Region"].upper() \
-                    == self.country.upper():
-                return index
+        try:
+            for index, _ in enumerate(self.confirmed_df.loc):
+                if self.confirmed_df.loc[index]["Country/Region"].upper() \
+                        == self.country.upper():
+                    return index
+        except KeyError as exc:
+            raise CountryNotFound(f"Country '{self.country}' was not found") from exc
+
 
     def get_avg_traffic_data(self):
         # Get average of all lists
@@ -274,7 +281,7 @@ class PlotHandler:
 
         self.formatted = False
 
-    def format_plot(self, case=None):
+    def format_plot(self):
         """
         Format the plot as a matplotlib plot
         """
@@ -313,7 +320,6 @@ class PlotHandler:
         self.format_plot()
         axis = AxisHandler.get_axis()
         self._format_axis(axis, "re_data")
-        axis.set_ylim(ymin=0, ymax=200)
         axis.plot(self.data.re_mean, label='Daily Reproduction Value smoothed for Switzerland')
         axis.grid(color="cyan", axis="y", alpha=0.5)
 
