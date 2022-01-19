@@ -26,6 +26,7 @@ Traffic Data needs to be normalized, to account for weekends/days off | DONE
 
 # TODO: Add Lockdown markers to plot
 
+from datetime import datetime, timedelta
 import logging
 import sys
 import time
@@ -33,6 +34,7 @@ from functools import cache
 
 import matplotlib
 import matplotlib.pyplot as plt
+import matplotlib.dates as mdates
 import numpy as np
 from scipy.stats.stats import pearsonr
 
@@ -167,6 +169,14 @@ class Data:
         self.datasets_as_xy = prep_apple_mobility_data(
             self.apple_mobility, self.country)
         self.data_x = self.get_x_data()
+        start_date = datetime(2021, 1, 1).date()
+        end_date   = datetime.today().date()
+        delta = end_date - start_date
+        print(f"{delta.days}")
+        print(f"{start_date = }, {end_date = }")
+        d = [(start_date + timedelta(days=i)) for i in range(delta.days)]
+
+        print(d)
 
         # Depends on datasets_as_xy
         self.avg_traffic_data = self.get_avg_traffic_data()
@@ -276,7 +286,7 @@ class PlotHandler:
 
         PlotHandler.plot = plt
 
-        self.data_x = self.data.data_x
+        self.data.data_x = self.data.data_x
         self.ax_handler = AxisHandler()
 
         self.formatted = False
@@ -288,7 +298,7 @@ class PlotHandler:
         if not self.formatted:
             PlotHandler.plot.xlabel('Days Since 1/22/2020', size=15)
             PlotHandler.plot.xticks(size=10, rotation=90, ticks=[
-                i*50 for i in range(int(len(self.data_x)/2) % 50)])
+                i*50 for i in range(int(len(self.data.data_x)/2) % 50)])
             self.formatted = True
 
     def _format_axis(self, axis, case):
@@ -303,7 +313,7 @@ class PlotHandler:
         axis = AxisHandler.get_axis()
         axis.set_ylim(ymax=average(sorted(self.data.confirmed_daily, reverse=True)[:2]))
         axis.plot(
-            self.data_x,
+            self.data.data_x,
             moving_average(self.data.confirmed_daily),
             color="blue",
             label=f"Incidence {self.data.country}, moving average",
@@ -323,9 +333,9 @@ class PlotHandler:
         axis.plot(self.data.re_mean, label='Daily Reproduction Value smoothed for Switzerland')
         axis.grid(color="cyan", axis="y", alpha=0.5)
 
-        axis.fill_between(self.data_x, self.data.re_low,
+        axis.fill_between(self.data.data_x, self.data.re_low,
                           self.data.re_mean, alpha=0.5)
-        axis.fill_between(self.data_x, self.data.re_high,
+        axis.fill_between(self.data.data_x, self.data.re_high,
                           self.data.re_mean, alpha=0.5)
 
     def _plot_other_re_data(self):
@@ -346,7 +356,7 @@ class PlotHandler:
         self.format_plot()
         axis = AxisHandler.get_axis()
         PlotHandler.plot.xticks(size=10, rotation=90, ticks=[
-            i*25 for i in range(int(len(self.data_x)/2) % 100)])
+            i*25 for i in range(int(len(self.data.data_x)/2) % 100)])
         logger.debug("%s", "Plotting traffic data")
         # Get average of all lists
         data_rows = []
@@ -356,22 +366,22 @@ class PlotHandler:
 
             match index:
                 case 0:
-                    self._plot_traffic_data(axis, self.data_x, moving_average(data_y),
+                    self._plot_traffic_data(axis, self.data.data_x, moving_average(data_y),
                                             color="#FE9402", label="Driving (%)")
                 case 1:
-                    self._plot_traffic_data(axis, self.data_x, data_y,
+                    self._plot_traffic_data(axis, self.data.data_x, data_y,
                                             color="#FE2D55", label="Transit (%)")
                 case 2:
-                    self._plot_traffic_data(axis, self.data_x, data_y,
+                    self._plot_traffic_data(axis, self.data.data_x, data_y,
                                             color="#AF51DE", label="Walking (%)")
                 case _:
-                    self._plot_traffic_data(axis, self.data_x, data_y,
+                    self._plot_traffic_data(axis, self.data.data_x, data_y,
                                             color="black", label="unknown datapoint")
         axis.set_ylabel(
             ' Increase of traffic routing requests in %, baseline at 100', size=20)
         axis.set_ylim(ymax=200)
 
-        axis.plot(self.data_x, self.data.avg_traffic_data, color="green",
+        axis.plot(self.data.data_x, self.data.avg_traffic_data, color="green",
                   label="Average mobility data")
 
     def _plot_traffic_data(self, axis, x, y, **kwargs):
@@ -379,13 +389,32 @@ class PlotHandler:
                   alpha=0.5, **kwargs)
 
     def plot_lockdown_data(self):
+        self.format_plot()
         logger.debug("%s", "Plotting lockdown data")
+        axis = AxisHandler.get_axis()
+        axis.plot(self.data.data_x, [0 for _ in range(len(self.data.data_x))], alpha=0)
         if self.data.country.lower() == "switzerland":
-            for index, date in enumerate(self.data_x):
+            ausweitungen = []
+            lockerungen = []
+            dates = []
+            ind = 0
+            for date in self.data.data_x:
                 if str(date) in list(self.data.ch_lockdown_data.Datum):
-                    # print(list(self.data.lockdown_data.Datum).index(date))
-                    # print(True)
-                    pass
+                    i = list(self.data.ch_lockdown_data.Datum).index(date)
+                    if self.data.ch_lockdown_data.Kategorisierung[i] == "Ausweitung":
+                        ausweitungen.append(date)
+                    elif self.data.ch_lockdown_data.Kategorisierung[i] == "Lockerung":
+                        lockerungen.append(date)
+                    dates.append(date)
+                    ind += 1
+
+
+            PlotHandler.plot.vlines(x=ausweitungen, ymin=0, ymax=max(self.data.confirmed_daily), color="red", linestyles="dashed")
+            PlotHandler.plot.vlines(x=lockerungen, ymin=0, ymax=max(self.data.confirmed_daily), color="green", linestyles="dashed")
+            for i, x in enumerate(dates):
+                t = self.data.ch_lockdown_data.Beschreibung.to_list()[i]
+                plt.text(x, max(self.data.confirmed_daily), t, rotation=90, verticalalignment="top")
+
             PlotHandler.plot.axvspan(
                 63,  # 16.03.20
                 119,

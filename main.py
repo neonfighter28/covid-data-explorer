@@ -126,6 +126,9 @@ class InputHandler():
                 case "mb" | "mobility":
                     logger.debug("%s", "Plotting mobility data")
                     self.connection.plot_traffic_data()
+                case "ld" | "lockdown":
+                    logger.debug("%s", "Plotting lockdown data")
+                    self.connection.plot_lockdown_data()
                 case _:
                     logger.warning("%s", f"Data not found for {argument}")
 
@@ -165,6 +168,7 @@ def ret_input() -> str:
             - re | reproduction -> Plots Reproduction Value
             - cs | cases        -> Cases for country
             - mb | mobility     -> Plots Apple Mobility Data
+            - ld | lockdown     -> Plots Lockdown Data (CH exclusive)
 ===================================================================================="""
         )
         user_in = input("covid-sets >>>> ")
