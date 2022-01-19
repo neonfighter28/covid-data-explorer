@@ -139,9 +139,9 @@ class Data:
     This Class handles all data
     """
 
-    def __init__(self, country="switzerland", cache="True") -> None:
+    def __init__(self, country="switzerland", use_cache="True") -> None:
         self.country = country
-        self.cache = cache
+        self.cache = use_cache
         logger.debug("%s", f"{self.country = }, {self.cache = }")
 
         self.confirmed_df, \
@@ -169,14 +169,14 @@ class Data:
         self.datasets_as_xy = prep_apple_mobility_data(
             self.apple_mobility, self.country)
         self.data_x = self.get_x_data()
-        start_date = datetime(2021, 1, 1).date()
+
+
+        start_date = datetime(2020, 1, 1).date()
         end_date   = datetime.today().date()
         delta = end_date - start_date
-        print(f"{delta.days}")
-        print(f"{start_date = }, {end_date = }")
-        d = [(start_date + timedelta(days=i)) for i in range(delta.days)]
 
-        print(d)
+        self.dates = [(start_date + timedelta(days=i)) for i in range(delta.days)]
+        self.dates_as_str = [str(date) for date in self.dates]
 
         # Depends on datasets_as_xy
         self.avg_traffic_data = self.get_avg_traffic_data()
@@ -350,7 +350,6 @@ class PlotHandler:
 
     def show_plot(self, exit_after=True):
         handles, labels = AxisHandler.get_legends()
-        print(AxisHandler._axis)
         PlotHandler.plot.legend(handles, labels, loc="best")
         PlotHandler.plot.show()
         if exit_after:
@@ -396,25 +395,36 @@ class PlotHandler:
         self.format_plot()
         logger.debug("%s", "Plotting lockdown data")
         axis = AxisHandler.get_axis(name="lockdown_data")
+        axis.set_yticks([]) # this needs no ticks
         axis.plot(self.data.data_x, [0 for _ in range(len(self.data.data_x))], alpha=0)
         if self.data.country.lower() == "switzerland":
             ausweitungen = []
             lockerungen = []
             dates = []
             ind = 0
-            for date in self.data.data_x:
+            for date in self.data.dates_as_str:
                 if str(date) in list(self.data.ch_lockdown_data.Datum):
                     i = list(self.data.ch_lockdown_data.Datum).index(date)
-                    if self.data.ch_lockdown_data.Kategorisierung[i] == "Ausweitung":
+                    if self.data.ch_lockdown_data.Kategorisierung[ind] == "Ausweitung":
                         ausweitungen.append(date)
-                    elif self.data.ch_lockdown_data.Kategorisierung[i] == "Lockerung":
+                    elif self.data.ch_lockdown_data.Kategorisierung[ind] == "Lockerung":
                         lockerungen.append(date)
                     dates.append(date)
                     ind += 1
-
-
-            PlotHandler.plot.vlines(x=ausweitungen, ymin=0, ymax=max(self.data.confirmed_daily), color="red", linestyles="dashed")
-            PlotHandler.plot.vlines(x=lockerungen, ymin=0, ymax=max(self.data.confirmed_daily), color="green", linestyles="dashed")
+            PlotHandler.plot.vlines(
+                x=ausweitungen,
+                ymin=0,
+                ymax=max(self.data.confirmed_daily),
+                color="red",
+                linestyles="dashed"
+                )
+            PlotHandler.plot.vlines(
+                x=lockerungen,
+                ymin=0,
+                ymax=max(self.data.confirmed_daily),
+                color="green",
+                linestyles="dashed"
+                )
             for i, x in enumerate(dates):
                 t = self.data.ch_lockdown_data.Beschreibung.to_list()[i]
                 plt.text(x, max(self.data.confirmed_daily), t, rotation=90, verticalalignment="top")
