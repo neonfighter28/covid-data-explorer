@@ -252,23 +252,26 @@ class AxisHandler:
     """
     Class for returning new axes and its legends
     """
-    _axis = []
+    _axis = {}
 
     @staticmethod
-    def get_axis():
-        if not AxisHandler._axis: # if list is empty
-            axis = PlotHandler.plot.gca()
-            AxisHandler._axis.append(axis)
-            return axis
+    def get_axis(name=None):
+        try:
+            return AxisHandler._axis["name"]
+        except KeyError:
+            if not AxisHandler._axis:
+                axis = PlotHandler.plot.gca()
+                AxisHandler._axis[name] = axis
+                return axis
 
-        new_ax = AxisHandler._axis[-1].twinx()
-        AxisHandler._axis.append(new_ax)
-        return new_ax
+            new_ax = list(AxisHandler._axis.values())[-1].twinx()
+            AxisHandler._axis[name] = new_ax
+            return new_ax
 
     @staticmethod
     def get_legends() -> tuple[list[matplotlib.lines.Line2D], list[str]]:
         handles, labels = [], []
-        for axis in AxisHandler._axis:
+        for axis in AxisHandler._axis.values():
             for handle, label in zip(*axis.get_legend_handles_labels()):
                 handles.append(handle)
                 labels.append(label)
@@ -310,7 +313,7 @@ class PlotHandler:
     def plot_cases(self):
         self.format_plot()
 
-        axis = AxisHandler.get_axis()
+        axis = AxisHandler.get_axis(name="cases")
         axis.set_ylim(ymax=average(sorted(self.data.confirmed_daily, reverse=True)[:2]))
         axis.plot(
             self.data.data_x,
@@ -328,7 +331,7 @@ class PlotHandler:
 
     def _plot_ch_re_data(self):
         self.format_plot()
-        axis = AxisHandler.get_axis()
+        axis = AxisHandler.get_axis(name="ch_re_data")
         self._format_axis(axis, "re_data")
         axis.plot(self.data.re_mean, label='Daily Reproduction Value smoothed for Switzerland')
         axis.grid(color="cyan", axis="y", alpha=0.5)
@@ -340,13 +343,14 @@ class PlotHandler:
 
     def _plot_other_re_data(self):
         self.format_plot()
-        axis = AxisHandler.get_axis()
+        axis = AxisHandler.get_axis(name="other_re_data")
         axis.set_ylim(ymin=0, ymax=200)
         axis.plot(self.data.re_value_other,
                   label=f"Daily Reproduction Value smoothed for {self.data.capitalized_country}")
 
     def show_plot(self, exit_after=True):
         handles, labels = AxisHandler.get_legends()
+        print(AxisHandler._axis)
         PlotHandler.plot.legend(handles, labels, loc="best")
         PlotHandler.plot.show()
         if exit_after:
@@ -354,7 +358,7 @@ class PlotHandler:
 
     def plot_traffic_data(self):
         self.format_plot()
-        axis = AxisHandler.get_axis()
+        axis = AxisHandler.get_axis(name="traffic_data")
         PlotHandler.plot.xticks(size=10, rotation=90, ticks=[
             i*25 for i in range(int(len(self.data.data_x)/2) % 100)])
         logger.debug("%s", "Plotting traffic data")
@@ -391,7 +395,7 @@ class PlotHandler:
     def plot_lockdown_data(self):
         self.format_plot()
         logger.debug("%s", "Plotting lockdown data")
-        axis = AxisHandler.get_axis()
+        axis = AxisHandler.get_axis(name="lockdown_data")
         axis.plot(self.data.data_x, [0 for _ in range(len(self.data.data_x))], alpha=0)
         if self.data.country.lower() == "switzerland":
             ausweitungen = []
