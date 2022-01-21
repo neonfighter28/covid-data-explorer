@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 import json
 import logging
 import sys
@@ -12,28 +13,10 @@ class InputFailure(BaseException):
     """Raised if input sequence needs to be repeated"""
 
 
+@dataclass(frozen=True, order=True)
 class Argument:
-    """
-    Argument class containing the attributes name and value
-    """
-
-    def __init__(self, name, value) -> None:
-        self.__name = name
-        self.__value = value
-
-    @property
-    def name(self):
-        return self.__name
-
-    @property
-    def value(self):
-        return self.__value
-
-    def __hash__(self) -> int:
-        return hash(self.__name) + hash(self.__value)
-
-    def __repr__(self) -> str:
-        return f"Argument: {self.__name}, Value: {self.__value}"
+    name: str
+    value: str
 
 
 def split_input(input_string) -> tuple[str, list[str]]:
@@ -58,7 +41,7 @@ def unpack_args(args) -> Argument(str, str):
     """Takes a list of arguments and returns a list of tuples"""
     try:
         unpacked_args = [
-            Argument(value, args[index+1])
+            Argument(value, args[index + 1])
             for index, value in enumerate(args)
             if index % 2 == 0
         ]
@@ -99,7 +82,6 @@ class InputHandler():
         data_arguments = None
 
         for argument in self.arguments:
-            logger.debug("%s", f"{argument = }")
             match argument.name:
                 case "--country" | "-c":
                     self.country = argument.value
@@ -113,20 +95,21 @@ class InputHandler():
                     data_arguments = argument.value
                 case "--show" | "-s":
                     self.show_plot = json.loads(
-                        argument.value.lower())  # Load string as bool
+                        argument.value.lower())  # Load string safely as bool
 
         self.country = "switzerland" if not self.country else self.country
         self.start_date = None if not self.start_date else self.start_date
         self.end_date = None if not self.end_date else self.end_date
         data_arguments = None if not data_arguments else data_arguments
+        if not data_arguments:  # Need data to plot
+            raise InputFailure
         logger.debug(
             "%s", f"{self.country = }, {self.start_date = }, {self.end_date = }, {data_arguments = }")
         self.connection = get_data.PlotHandler(country=self.country, )
-        data_arguments = data_arguments.split("+")
 
-        for argument in data_arguments:
+        for argument in data_arguments.split("+"):  # Data arguments are supposed to be separated by a "+"
             logger.debug("%s", argument)
-            match argument:
+            match argument.lower():
                 case "cs" | "cases":
                     logger.debug("%s", "Plotting Cases...")
                     self.connection.plot_cases()
@@ -147,6 +130,9 @@ class InputHandler():
             self.connection.show_plot(exit_after=False)
         else:
             logger.debug("%s", "Not showing plot")
+
+        del self.connection
+        # raise InputFailure  # Repeat Input sequence until Ctrl+C is pressed or exit is entered
 
 
 def main(failure=False):
@@ -182,9 +168,11 @@ def ret_input() -> str:
 ===================================================================================="""
         )
         user_in = input("covid-sets >>>> ")
+        if user_in == "exit":
+            raise KeyboardInterrupt
     except KeyboardInterrupt:
         print("\nCtrl+C pressed, exiting...")
-        sys.exit(1)
+        sys.exit()
     command, args = split_input(user_in)
     return command, args
 
