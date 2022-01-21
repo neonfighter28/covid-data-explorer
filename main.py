@@ -5,15 +5,18 @@ import sys
 import get_data
 from config import LOG_CONFIG, LOG_LEVEL
 
-COMMANDS = ["plt", "plot"] # Valid commands
+COMMANDS = ["plt", "plot", "set"]  # Valid commands
+
 
 class InputFailure(BaseException):
     """Raised if input sequence needs to be repeated"""
+
 
 class Argument:
     """
     Argument class containing the attributes name and value
     """
+
     def __init__(self, name, value) -> None:
         self.__name = name
         self.__value = value
@@ -32,6 +35,7 @@ class Argument:
     def __repr__(self) -> str:
         return f"Argument: {self.__name}, Value: {self.__value}"
 
+
 def split_input(input_string) -> tuple[str, list[str]]:
     try:
         command = input_string.split()[0]
@@ -46,8 +50,9 @@ def split_input(input_string) -> tuple[str, list[str]]:
     except AssertionError:
         logger.fatal("%s", f"Command invalid {command}")
         print("Command invalid, retry")
-        main(failure=True) # Retry
+        main(failure=True)  # Retry
     return command, args
+
 
 def unpack_args(args) -> Argument(str, str):
     """Takes a list of arguments and returns a list of tuples"""
@@ -56,7 +61,7 @@ def unpack_args(args) -> Argument(str, str):
             Argument(value, args[index+1])
             for index, value in enumerate(args)
             if index % 2 == 0
-            ]
+        ]
 
         return unpacked_args
     except IndexError as exc:
@@ -67,6 +72,7 @@ class InputHandler():
     """
     Handles User Input and dispatches command
     """
+
     def __init__(self, command, args):
         self.command, self.args = command, args
 
@@ -81,6 +87,8 @@ class InputHandler():
         According to the usage, the passed-through arguments are supposed to be in the following order:
         [COUNTRY] [TIMEA] [TIMEB] [data]
         whereas data is a list of lines to be plotted
+
+        This function calls to the lower-level module get_data and adds lines to plot
         """
 
         self.start_date = None
@@ -104,13 +112,15 @@ class InputHandler():
                 case "--data" | "-d":
                     data_arguments = argument.value
                 case "--show" | "-s":
-                    self.show_plot = json.loads(argument.value.lower()) # Load string as bool
+                    self.show_plot = json.loads(
+                        argument.value.lower())  # Load string as bool
 
         self.country = "switzerland" if not self.country else self.country
         self.start_date = None if not self.start_date else self.start_date
         self.end_date = None if not self.end_date else self.end_date
         data_arguments = None if not data_arguments else data_arguments
-        logger.debug("%s", f"{self.country = }, {self.start_date = }, {self.end_date = }, {data_arguments = }")
+        logger.debug(
+            "%s", f"{self.country = }, {self.start_date = }, {self.end_date = }, {data_arguments = }")
         self.connection = get_data.PlotHandler(country=self.country, )
         data_arguments = data_arguments.split("+")
 
@@ -157,7 +167,7 @@ def main(failure=False):
 def ret_input() -> str:
     try:
         print(
-    """
+            """
     Usage/Syntax:
     plt | plot
         --country   | -c    [COUNTRY]       | Default: switzerland

@@ -46,7 +46,10 @@ timestart = time.perf_counter()
 
 logger = logging.getLogger("__main__")
 
-class CountryNotFound(BaseException):
+class CovidPredException(BaseException):
+    """Base Exception for this module"""
+
+class CountryNotFound(CovidPredException):
     """Country wasn't found"""
 
 
