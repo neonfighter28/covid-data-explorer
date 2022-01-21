@@ -1,7 +1,9 @@
 {
     "python.formatting.provider": "autopep8",
     "python.pythonPath": "venv/bin/python3.10",
-    "python.linting.pylintEnabled": true,
+    "python.linting.pylintEnabled": false,
     "python.linting.enabled": true,
-    "python.linting.pycodestyleEnabled": false
+    "python.linting.pycodestyleEnabled": false,
+    "discord.enabled": true,
+    "python.linting.flake8Enabled": true
 }

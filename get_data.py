@@ -34,7 +34,6 @@ from functools import cache
 
 import matplotlib
 import matplotlib.pyplot as plt
-import matplotlib.dates as mdates
 import numpy as np
 from scipy.stats.stats import pearsonr
 
@@ -46,8 +45,10 @@ timestart = time.perf_counter()
 
 logger = logging.getLogger("__main__")
 
+
 class CovidPredException(BaseException):
     """Base Exception for this module"""
+
 
 class CountryNotFound(CovidPredException):
     """Country wasn't found"""
@@ -74,16 +75,16 @@ def average(num):
 
 
 def normalize(data):
-    return [i/max(data) for i in data]
+    return [i / max(data) for i in data]
 
 
 def daily_increase(data):
-    return [data if i == 0 else data[i] - data[i-1] for i in range(len(data))]
+    return [data if i == 0 else data[i] - data[i - 1] for i in range(len(data))]
 
 
 def moving_average(data, window_size=7):
     return [
-        np.mean(data[i:i+window_size])
+        np.mean(data[i:i + window_size])
         if i + window_size < len(data)
         else np.mean(data[i:len(data)])
         for i in range(len(data))
@@ -133,7 +134,7 @@ def add_nans_to_start_of_list(re, nan=DATES_RE):
     # The first 26 days are not included in this dataset
     x = [np.nan for _ in range(nan)]
     for i in re:
-        x.append(rround(i*100, 1))
+        x.append(rround(i * 100, 1))
     return x
 
 
@@ -173,9 +174,8 @@ class Data:
             self.apple_mobility, self.country)
         self.data_x = self.get_x_data()
 
-
         start_date = datetime(2020, 1, 1).date()
-        end_date   = datetime.today().date()
+        end_date = datetime.today().date()
         delta = end_date - start_date
 
         self.dates = [(start_date + timedelta(days=i)) for i in range(delta.days)]
@@ -195,10 +195,9 @@ class Data:
         self.re_low = add_nans_to_start_of_list(re_low)
 
     def set_re_value_other(self):
-        self.re_value_other = self.owid_data[self.owid_data.location ==
-                                             self.capitalized_country]
+        self.re_value_other = self.owid_data[self.owid_data.location == self.capitalized_country]
         self.re_value_other = self.re_value_other.reproduction_rate.to_list()
-        self.re_value_other = [i*100 for i in self.re_value_other]
+        self.re_value_other = [i * 100 for i in self.re_value_other]
 
     def get_capitalized_country(self):
         return self.country[:1].upper() + self.country[1:]
@@ -242,13 +241,12 @@ class Data:
         except KeyError as exc:
             raise CountryNotFound(f"Country '{self.country}' was not found") from exc
 
-
     def get_avg_traffic_data(self):
         # Get average of all lists
         data_rows = [moving_average(interp_nans(list(zip(*row))[1]))
                      for row in self.datasets_as_xy]
 
-        return moving_average([sum(e)/len(e) for e in zip(*data_rows)])
+        return moving_average([sum(e) / len(e) for e in zip(*data_rows)])
 
 
 class AxisHandler:
@@ -258,9 +256,10 @@ class AxisHandler:
     _axis = {}
 
     @staticmethod
-    def get_axis(name=None):
+    def get_axis(name: str = None) -> plt.Axes:
+        logger.debug("%s", f"Getting axis for {name = }")
         try:
-            return AxisHandler._axis["name"]
+            return AxisHandler._axis[name]
         except KeyError:
             if not AxisHandler._axis:
                 axis = PlotHandler.plot.gca()
@@ -290,6 +289,8 @@ class PlotHandler:
     def __init__(self, **kwargs):
         self.data = Data(**kwargs)
 
+        if PlotHandler.plot:
+            del PlotHandler.plot
         PlotHandler.plot = plt
 
         self.data.data_x = self.data.data_x
@@ -304,14 +305,13 @@ class PlotHandler:
         if not self.formatted:
             PlotHandler.plot.xlabel('Days Since 1/22/2020', size=15)
             PlotHandler.plot.xticks(size=10, rotation=90, ticks=[
-                i*50 for i in range(int(len(self.data.data_x)/2) % 50)])
+                i * 50 for i in range(int(len(self.data.data_x) / 2) % 50)])
             self.formatted = True
 
     def _format_axis(self, axis, case):
         match case:
             case "re_data":
                 axis.set_ylim(ymin=0, ymax=200)
-
 
     def plot_cases(self):
         self.format_plot()
@@ -351,7 +351,7 @@ class PlotHandler:
         axis.plot(self.data.re_value_other,
                   label=f"Daily Reproduction Value smoothed for {self.data.capitalized_country}")
 
-    def show_plot(self, exit_after=True):
+    def show_plot(self, exit_after=False):
         handles, labels = AxisHandler.get_legends()
         PlotHandler.plot.legend(handles, labels, loc="best")
         PlotHandler.plot.show()
@@ -362,7 +362,7 @@ class PlotHandler:
         self.format_plot()
         axis = AxisHandler.get_axis(name="traffic_data")
         PlotHandler.plot.xticks(size=10, rotation=90, ticks=[
-            i*25 for i in range(int(len(self.data.data_x)/2) % 100)])
+            i * 25 for i in range(int(len(self.data.data_x) / 2) % 100)])
         logger.debug("%s", "Plotting traffic data")
         # Get average of all lists
         data_rows = []
@@ -398,7 +398,7 @@ class PlotHandler:
         self.format_plot()
         logger.debug("%s", "Plotting lockdown data")
         axis = AxisHandler.get_axis(name="lockdown_data")
-        axis.set_yticks([]) # this needs no ticks
+        axis.set_yticks([])  # this needs no ticks
         axis.plot(self.data.data_x, [0 for _ in range(len(self.data.data_x))], alpha=0)
         if self.data.country.lower() == "switzerland":
             ausweitungen = []
@@ -420,25 +420,17 @@ class PlotHandler:
                 ymax=max(self.data.confirmed_daily),
                 color="red",
                 linestyles="dashed"
-                )
+            )
             PlotHandler.plot.vlines(
                 x=lockerungen,
                 ymin=0,
                 ymax=max(self.data.confirmed_daily),
                 color="green",
                 linestyles="dashed"
-                )
+            )
             for i, x in enumerate(dates):
                 t = self.data.ch_lockdown_data.Beschreibung.to_list()[i]
                 plt.text(x, max(self.data.confirmed_daily), t, rotation=90, verticalalignment="top")
-
-            PlotHandler.plot.axvspan(
-                63,  # 16.03.20
-                119,
-                color='red', alpha=0.5
-            )
-
-            PlotHandler.plot.axvspan(279, 402, color="red", alpha=0.5)
 
     def log_pearson_constant(self):
         # Calculate pearson const.

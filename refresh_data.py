@@ -61,7 +61,7 @@ def get_cached_data():
 def get_current_apple_url():
     response = requests.get(
         "https://covid19-static.cdn-apple.com/covid19-mobility-data/current/v3/index.json"
-        ).json()
+    ).json()
     uri = ("https://covid19-static.cdn-apple.com/"
            + response['basePath']
            + response['regions']['en-us']['csvPath'])
