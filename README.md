@@ -1,6 +1,6 @@
 # Covid Data Explorer
 
-## 1. Gestaltungsidee
+## 1. Idea
 
 ### Product
 
