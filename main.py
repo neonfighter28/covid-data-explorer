@@ -2,7 +2,7 @@ from dataclasses import dataclass
 import json
 import logging
 import sys
-from help import HELP_DATA, HELP_COUNTRY
+from help import HELP_DATA, HELP_COUNTRY, USAGE
 
 import get_data
 from config import LOG_CONFIG, LOG_LEVEL
@@ -115,7 +115,7 @@ class InputHandler():
             raise InputFailure
         logger.debug(
             "%s", f"{self.country = }, {self.start_date = }, {self.end_date = }, {data_arguments = }")
-        self.connection = get_data.PlotHandler(country=self.country, )
+        self.connection = get_data.PlotHandler(country=self.country)
 
         for argument in data_arguments.split("+"):  # Data arguments are supposed to be separated by a "+"
             logger.debug("%s", argument)
@@ -168,20 +168,7 @@ def main(failure=False):
 
 def ret_input() -> str:
     try:
-        print(
-            """
-    Usage/Syntax:
-    plt | plot
-        --country   | -c    [COUNTRY]       | Default: switzerland
-        NotImplemented --startdate | -sd   [DD.MM.YY]      | Default: None
-        NotImplemented --enddate   | -ed   [DD.MM.YY]      | Default: None
-        --show      | -s    [bool]          | Default: True Whether to show the plot
-        --data      | -d    [ARG+ARG+...]   | Default: None
-    help
-        data
-        country
-===================================================================================="""
-        )
+        print(USAGE)
         user_in = input("covid-sets >>>> ")
         if user_in == "exit":
             raise KeyboardInterrupt

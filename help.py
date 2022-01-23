@@ -1,3 +1,16 @@
+USAGE = """
+Usage/Syntax:
+plt | plot
+    --country   | -c    [COUNTRY]       | Default: switzerland
+    NotImplemented --startdate | -sd   [DD.MM.YY]      | Default: None
+    NotImplemented --enddate   | -ed   [DD.MM.YY]      | Default: None
+    --show      | -s    [bool]          | Default: True Whether to show the plot
+    --data      | -d    [ARG+ARG+...]   | Default: None
+help
+    data
+    country
+===================================================================================="""
+
 HELP_DATA = """
 Usage of the data argument:
 
@@ -21,10 +34,6 @@ under the official dataset documentation:
 https://github.com/owid/covid-19-data/tree/master/public/data
 
 --------------------------------------------------------------------------------
-| Meta:                                                                        |
-|------------------------------------------------------------------------------|
-| continent          | location         | date             | iso_code          |
-|------------------------------------------------------------------------------|
 | Cases & Deaths:                                                              |
 |------------------------------------------------------------------------------|
 | total_cases                           | total_deaths                         |

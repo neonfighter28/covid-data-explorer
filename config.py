@@ -7,10 +7,6 @@ DATES_RE = 27
 LOG_LEVEL = DEBUG
 
 OPTIONS_SET_1 = [
-    "continent",
-    "location",
-    "iso_code",
-    "date",
     "total_cases",
     "new_cases",
     "new_cases_smoothed",
