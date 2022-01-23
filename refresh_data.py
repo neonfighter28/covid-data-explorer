@@ -1,6 +1,5 @@
 import logging
 import pandas as pd
-import config
 import requests
 import pickle
 from config import LOG_CONFIG, LOG_LEVEL

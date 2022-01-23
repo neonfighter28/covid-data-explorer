@@ -20,8 +20,7 @@ Plot containing 4 lines:
 
 Traffic Data needs to be normalized, to account for weekends/days off | DONE
 
--> Predict COVID Data for the next 2 weeks
--> Predict traffic Data for the next 2 weeks
+Use stringency dataset from OWID
 """
 
 # TODO: Add Lockdown markers to plot
@@ -278,6 +277,7 @@ class AxisHandler:
                 handles.append(handle)
                 labels.append(label)
         return handles, labels
+
 
 
 class PlotHandler:
