@@ -14,6 +14,7 @@ Supported values are currently:
 
 Unsupported values can still be plotted, although there is no
 shortened version of them, and their names will be the same as in the dataset
+There is also a high chance they will not be displayed correctly
 
 All unsupported values are listed in the table below. Their explanation is found
 under the official dataset documentation:

@@ -1,32 +1,10 @@
 """
-Usage: py get-data.py
-
-Goals:
-Plot containing 4 lines:
-1. Traffic Data of country -> walking | DONE
-2. Traffic Data of country -> driving | DONE
-3. Traffic Data of country -> transit | DONE
-4. Traffic data normalized            | DONE
-5. COVID Data of country              | DONE
-6. R Value
-
-6. New dataset on whether there was a lockdown or not
-
-    Dates of lockdown:
-    - 16.03.20-11.05.20,
-    - 18.10.20-17.02.21,
-
-    -> different levels of lockdowns?
-
-Traffic Data needs to be normalized, to account for weekends/days off | DONE
-
-Use stringency dataset from OWID
+Usage: run main.py instead of this
 """
-
-# TODO: Add Lockdown markers to plot
 
 from datetime import datetime, timedelta
 import logging
+import random
 import sys
 import time
 from functools import cache
@@ -37,9 +15,10 @@ import numpy as np
 from scipy.stats.stats import pearsonr
 
 import refresh_data
-from config import DATES_RE, LOG_CONFIG, LOG_LEVEL, OPTIONS_SET_1
+from config import DATES_RE, OPTIONS_SET_1
 
 plt.style.use('seaborn-poster')
+random.seed(19)  # 19 for Covid-19 :P
 timestart = time.perf_counter()
 
 logger = logging.getLogger("__main__")
@@ -137,6 +116,20 @@ def add_nans_to_start_of_list(re, nan=DATES_RE, factor=100):
     return x
 
 
+class ColorHandler:
+    cmap = matplotlib.cm.get_cmap("Spectral")
+    colors = {}
+
+    @staticmethod
+    def get_color(name="None"):
+        try:
+            return ColorHandler.colors[name]
+        except KeyError:
+            color = ColorHandler.cmap(random.random())
+            ColorHandler.colors[name] = color
+            return color
+
+
 class Data:
     """
     This Class handles all data
@@ -144,7 +137,7 @@ class Data:
 
     def __init__(self, country="switzerland", use_cache="True") -> None:
         if "-" in country:
-            country = country.replace("-", " ")
+            country = country.replace("-", " ")  # See HELP_COUNTRY
         self.country = country
         self.cache = use_cache
         logger.debug("%s", f"{self.country = }, {self.cache = }")
@@ -166,13 +159,12 @@ class Data:
 
     def _build_data(self):
         self.capitalized_country = self.get_capitalized_country()
-        self.get_policies_for_country()
+        self.policies_for_country = self.policies[self.policies.CountryName == self.capitalized_country]
         self.set_re_values_ch()
         self.set_re_value_other()
         self.read_lockdown_data()
         self.set_cases_owid()
-        self.datasets_as_xy = prep_apple_mobility_data(
-            self.apple_mobility, self.country)
+        self.datasets_as_xy = prep_apple_mobility_data(self.apple_mobility, self.country)
         self.data_x = self.get_x_data()
 
         start_date = datetime(2020, 1, 1).date()
@@ -218,12 +210,10 @@ class Data:
         for value in self.datasets_as_xy:
             return list(zip(*value))[0]
 
-
     def get_policies_for_country(self):
         self.policies_for_country = self.policies[
             self.policies.CountryName == self.capitalized_country
         ]
-
 
     def get_avg_traffic_data(self):
         # Get average of all lists
@@ -273,8 +263,6 @@ class PlotHandler:
     def __init__(self, **kwargs):
         self.data = Data(**kwargs)
 
-        if PlotHandler.plot:
-            del PlotHandler.plot
         PlotHandler.plot = plt
 
         self.data.data_x = self.data.data_x
@@ -302,7 +290,12 @@ class PlotHandler:
         try:
             assert value in OPTIONS_SET_1
             axis = AxisHandler.get_axis(f"Arbitrary: {value}")
-            axis.plot(self.data.owid_data[value].to_list(), label=value)
+            axis.plot(
+                self.data.dates_owid,
+                self.data.owid_data_for_country[value].to_list(),
+                label=value,
+                color=ColorHandler.get_color(value)
+            )
         except AssertionError:
             return NotImplemented
 
@@ -441,16 +434,4 @@ class PlotHandler:
 
 
 if __name__ == "__main__":
-    logger.setLevel(level=LOG_LEVEL)
-    fh = logging.StreamHandler()
-    fh_formatter = logging.Formatter(LOG_CONFIG)
-    fh.setFormatter(fh_formatter)
-    logger.addHandler(fh)
-    timestart = time.perf_counter()
-
-    cls = PlotHandler()
-
-    cls.plot_cases()
-    cls.plot_re_data()
-    cls.plot_traffic_data()
-    cls.show_plot()
+    print("Please run main.py instead")
