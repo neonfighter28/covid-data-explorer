@@ -129,11 +129,11 @@ def interp_nans(x: list[float], left=None, right=None, period=None) -> list[floa
     return [rround(i, 1) for i in lst]
 
 
-def add_nans_to_start_of_list(re, nan=DATES_RE):
+def add_nans_to_start_of_list(re, nan=DATES_RE, factor=100):
     # The first 26 days are not included in this dataset
     x = [np.nan for _ in range(nan)]
     for i in re:
-        x.append(rround(i * 100, 1))
+        x.append(rround(i * factor, 1))
     return x
 
 
@@ -143,17 +143,17 @@ class Data:
     """
 
     def __init__(self, country="switzerland", use_cache="True") -> None:
+        if "-" in country:
+            country = country.replace("-", " ")
         self.country = country
         self.cache = use_cache
         logger.debug("%s", f"{self.country = }, {self.cache = }")
 
-        self.confirmed_df, \
-            self.apple_mobility, \
+        self.apple_mobility, \
             self.ch_lockdown_data, \
             self.ch_re_data, \
             self.owid_data, \
             self.policies = refresh_data.get_cached_data()
-        self.confirmed_daily = None
         self.datasets_as_xy = None
         self.avg_traffic_data = None
         self.re_value_other = None
@@ -170,7 +170,7 @@ class Data:
         self.set_re_values_ch()
         self.set_re_value_other()
         self.read_lockdown_data()
-        self.confirmed_daily = self.get_confirmed_daily()
+        self.set_cases_owid()
         self.datasets_as_xy = prep_apple_mobility_data(
             self.apple_mobility, self.country)
         self.data_x = self.get_x_data()
@@ -184,6 +184,11 @@ class Data:
 
         # Depends on datasets_as_xy
         self.avg_traffic_data = self.get_avg_traffic_data()
+
+    def set_cases_owid(self):
+        self.owid_data_for_country = self.owid_data[self.owid_data.location == self.capitalized_country]
+        self.cases_for_country = self.owid_data_for_country.new_cases.fillna(0).to_list()
+        self.dates_owid = self.owid_data_for_country.date.to_list()
 
     def set_re_values_ch(self):
         self.ch_re_data = self.ch_re_data.loc[self.ch_re_data["geoRegion"] == "CH"]
@@ -213,39 +218,12 @@ class Data:
         for value in self.datasets_as_xy:
             return list(zip(*value))[0]
 
-    def get_confirmed_daily(self):
-        confirmed_daily = [0 for _ in range(6)]
-        k_minus_1 = 0
-        for index, (_, value) in enumerate(self._build_def_data().items()):
-            if index < 2:
-                continue  # First two values are text
-            confirmed_daily.append(value - k_minus_1)
-            k_minus_1 = value
-        return confirmed_daily
-
-    def _build_def_data(self):
-        index = self._get_index_of_datarow()
-        try:
-            def_data = {
-                key: self.confirmed_df.loc[index][key] for key in self.confirmed_df}
-        except KeyError:
-            pass
-        return def_data
 
     def get_policies_for_country(self):
         self.policies_for_country = self.policies[
             self.policies.CountryName == self.capitalized_country
         ]
 
-    def _get_index_of_datarow(self):
-        # Might throw KeyError?
-        try:
-            for index, _ in enumerate(self.confirmed_df.loc):
-                if self.confirmed_df.loc[index]["Country/Region"].upper() \
-                        == self.country.upper():
-                    return index
-        except KeyError as exc:
-            raise CountryNotFound(f"Country '{self.country}' was not found") from exc
 
     def get_avg_traffic_data(self):
         # Get average of all lists
@@ -311,7 +289,7 @@ class PlotHandler:
         if not self.formatted:
             PlotHandler.plot.xlabel('Days Since 1/22/2020', size=15)
             PlotHandler.plot.xticks(size=10, rotation=90, ticks=[
-                i * 25 for i in range(int(len(self.data.data_x) / 2) % 25)])
+                i * 50 for i in range(int(len(self.data.dates_owid)) % 50)])
             self.formatted = True
 
     def _format_axis(self, axis, case):
@@ -323,12 +301,12 @@ class PlotHandler:
         self.format_plot()
 
         axis = AxisHandler.get_axis(name="cases")
-        axis.set_ylim(ymax=average(sorted(self.data.confirmed_daily, reverse=True)[:2]))
+        axis.set_ylim(ymax=average(sorted(self.data.cases_for_country, reverse=True)[:10]))
         axis.plot(
-            self.data.data_x,
-            moving_average(self.data.confirmed_daily),
+            self.data.dates_owid,
+            moving_average(self.data.cases_for_country),
             color="blue",
-            label=f"Incidence {self.data.country}, moving average",
+            label=f"Incidence {self.data.capitalized_country}, moving average",
         )
         axis.grid(color="blue", axis="y", alpha=0.1)
 
@@ -428,27 +406,27 @@ class PlotHandler:
             PlotHandler.plot.vlines(
                 x=ausweitungen,
                 ymin=0,
-                ymax=max(self.data.confirmed_daily),
+                ymax=max(self.data.cases_for_country),
                 color="red",
                 linestyles="dashed"
             )
             PlotHandler.plot.vlines(
                 x=lockerungen,
                 ymin=0,
-                ymax=max(self.data.confirmed_daily),
+                ymax=max(self.data.cases_for_country),
                 color="green",
                 linestyles="dashed"
             )
             for i, x in enumerate(dates):
                 t = self.data.ch_lockdown_data.Beschreibung.to_list()[i]
-                plt.text(x, max(self.data.confirmed_daily), t, rotation=90, verticalalignment="top")
+                plt.text(x, max(self.data.cases_for_country), t, rotation=90, verticalalignment="top")
 
     def log_pearson_constant(self):
         # Calculate pearson const.
         n_traffic_data = normalize(
             moving_average(self.data.avg_traffic_data, 50))
         n_daily_incidence = normalize(
-            moving_average(self.data.confirmed_daily, 50))
+            moving_average(self.data.cases_for_country, 50))
         logger.debug(
             "%s", f"Pearson Constant: {pearsonr(n_traffic_data[2:], n_daily_incidence)}")
 

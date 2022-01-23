@@ -8,7 +8,6 @@ from config import LOG_CONFIG, LOG_LEVEL
 def get_new_data() -> tuple[pd.DataFrame, ...]:
     # URLs
     # https://www.thelancet.com/journals/laninf/article/PIIS1473-3099(20)30120-1/fulltext
-    url_cov_global = 'https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_confirmed_global.csv'
     url_ch_cov_markers = "https://raw.githubusercontent.com/statistikZH/covid19zeitmarker/master/covid19zeitmarker.csv"
     url_apple_mobility_data = get_current_apple_url()
     url_ch_re_data = get_re_data_url()
@@ -17,7 +16,6 @@ def get_new_data() -> tuple[pd.DataFrame, ...]:
 
     logger.info("%s", "------   Pulling data...   ------")
 
-    confirmed_df = pd.read_csv(url_cov_global)
     logger.debug("%s", "Pulling mobility data...")
     apple_mobility = pd.read_csv(url_apple_mobility_data)
     logger.info("%s", "Pulling lockdown data...")
@@ -32,7 +30,6 @@ def get_new_data() -> tuple[pd.DataFrame, ...]:
     logger.debug("%s", "------Loading is completed ------")
 
     # Saving to file
-    save_to_file("confirmed_df", confirmed_df)
     save_to_file("apple_mobility", apple_mobility)
     save_to_file("ch_lockdown_data", ch_lockdown_data)
     save_to_file("ch_re_data", ch_re_data)
@@ -40,13 +37,12 @@ def get_new_data() -> tuple[pd.DataFrame, ...]:
     save_to_file("policies", policies)
     logger.debug("%s", "saved to cache!")
 
-    return confirmed_df, apple_mobility, ch_lockdown_data, ch_re_data, owid_data, policies
+    return apple_mobility, ch_lockdown_data, ch_re_data, owid_data, policies
 
 
 def get_cached_data() -> tuple[pd.DataFrame, ...]:
     try:
         logger.debug("%s", "Reading from cache...")
-        confirmed_df = read_from_file("confirmed_df")
         apple_mobility = read_from_file("apple_mobility")
         ch_lockdown_data = read_from_file("ch_lockdown_data")
         ch_re_data = read_from_file("ch_re_data")
@@ -55,7 +51,7 @@ def get_cached_data() -> tuple[pd.DataFrame, ...]:
     except FileNotFoundError:
         get_new_data()
         get_cached_data()
-    return confirmed_df, apple_mobility, ch_lockdown_data, ch_re_data, owid_data, policies
+    return apple_mobility, ch_lockdown_data, ch_re_data, owid_data, policies
 
 
 def get_current_apple_url():
