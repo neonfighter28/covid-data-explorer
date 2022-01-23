@@ -2,6 +2,7 @@ from dataclasses import dataclass
 import json
 import logging
 import sys
+from help import HELP_DATA, HELP_COUNTRY
 
 import get_data
 from config import LOG_CONFIG, LOG_LEVEL
@@ -66,7 +67,9 @@ class InputHandler():
                 if self.args:
                     match args[0]:
                         case "data":
-                            print()
+                            print(HELP_DATA)
+                        case "country":
+                            print(HELP_COUNTRY)
                 main(failure=True)
 
             case _:
@@ -170,14 +173,13 @@ def ret_input() -> str:
     Usage/Syntax:
     plt | plot
         --country   | -c    [COUNTRY]       | Default: switzerland
-        --startdate | -sd   [DD.MM.YY]      | Default: None
-        --enddate   | -ed   [DD.MM.YY]      | Default: None
+        NotImplemented --startdate | -sd   [DD.MM.YY]      | Default: None
+        NotImplemented --enddate   | -ed   [DD.MM.YY]      | Default: None
         --show      | -s    [bool]          | Default: True Whether to show the plot
-        --data      | -d    [ARG+ARG+...]    | Default: None
-            - re | reproduction -> Plots Reproduction Value
-            - cs | cases        -> Cases for country
-            - mb | mobility     -> Plots Apple Mobility Data
-            - ld | lockdown     -> Plots Lockdown Data (CH exclusive)
+        --data      | -d    [ARG+ARG+...]   | Default: None
+    help
+        data
+        country
 ===================================================================================="""
         )
         user_in = input("covid-sets >>>> ")

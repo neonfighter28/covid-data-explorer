@@ -56,3 +56,6 @@ Global mobility data by apple
 Reproduction values, provided by Bundesamt für Gesundheit
 
     https://www.covid19.admin.ch/api/data/documentation/models/sources-definitions-redailyincomingdata.md
+
+## 4. Usage
+
