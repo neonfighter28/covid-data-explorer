@@ -151,7 +151,8 @@ class Data:
             self.apple_mobility, \
             self.ch_lockdown_data, \
             self.ch_re_data, \
-            self.owid_data = refresh_data.get_cached_data()
+            self.owid_data, \
+            self.policies = refresh_data.get_cached_data()
         self.confirmed_daily = None
         self.datasets_as_xy = None
         self.avg_traffic_data = None
@@ -165,6 +166,7 @@ class Data:
 
     def _build_data(self):
         self.capitalized_country = self.get_capitalized_country()
+        self.get_policies_for_country()
         self.set_re_values_ch()
         self.set_re_value_other()
         self.read_lockdown_data()
@@ -229,6 +231,11 @@ class Data:
         except KeyError:
             pass
         return def_data
+
+    def get_policies_for_country(self):
+        self.policies_for_country = self.policies[
+            self.policies.CountryName == self.capitalized_country
+        ]
 
     def _get_index_of_datarow(self):
         # Might throw KeyError?
@@ -304,7 +311,7 @@ class PlotHandler:
         if not self.formatted:
             PlotHandler.plot.xlabel('Days Since 1/22/2020', size=15)
             PlotHandler.plot.xticks(size=10, rotation=90, ticks=[
-                i * 50 for i in range(int(len(self.data.data_x) / 2) % 50)])
+                i * 25 for i in range(int(len(self.data.data_x) / 2) % 25)])
             self.formatted = True
 
     def _format_axis(self, axis, case):
@@ -356,6 +363,11 @@ class PlotHandler:
         PlotHandler.plot.show()
         if exit_after:
             sys.exit(0)
+
+    def plot_stringency_index(self):
+        axis = AxisHandler.get_axis("stringency_index")
+        axis.set_ylim(ymin=0, ymax=100)
+        axis.plot(self.data.policies_for_country.StringencyIndex.to_list(), label="Stringency Index")
 
     def plot_traffic_data(self):
         self.format_plot()

@@ -122,6 +122,9 @@ class InputHandler():
                 case "ld" | "lockdown":
                     logger.debug("%s", "Plotting lockdown data")
                     self.connection.plot_lockdown_data()
+                case "str" | "stringency":
+                    logger.debug("%s", "Plotting Stringency Index")
+                    self.connection.plot_stringency_index()
                 case _:
                     logger.warning("%s", f"Data not found for {argument}")
 

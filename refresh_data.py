@@ -5,7 +5,7 @@ import pickle
 from config import LOG_CONFIG, LOG_LEVEL
 
 
-def get_new_data():
+def get_new_data() -> tuple[pd.DataFrame, ...]:
     # URLs
     # https://www.thelancet.com/journals/laninf/article/PIIS1473-3099(20)30120-1/fulltext
     url_cov_global = 'https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_confirmed_global.csv'
@@ -13,6 +13,7 @@ def get_new_data():
     url_apple_mobility_data = get_current_apple_url()
     url_ch_re_data = get_re_data_url()
     url_owid = "https://covid.ourworldindata.org/data/owid-covid-data.csv"
+    url_policies = "https://raw.githubusercontent.com/OxCGRT/covid-policy-tracker/master/data/OxCGRT_latest.csv"
 
     logger.info("%s", "------   Pulling data...   ------")
 
@@ -25,6 +26,8 @@ def get_new_data():
     ch_re_data = pd.read_csv(url_ch_re_data)
     logger.debug("%s", "Pulling OWID data")
     owid_data = pd.read_csv(url_owid)
+    logger.debug("%s", "Pulling policies")
+    policies = pd.read_csv(url_policies)
 
     logger.debug("%s", "------Loading is completed ------")
 
@@ -34,12 +37,13 @@ def get_new_data():
     save_to_file("ch_lockdown_data", ch_lockdown_data)
     save_to_file("ch_re_data", ch_re_data)
     save_to_file("owid_data", owid_data)
+    save_to_file("policies", policies)
     logger.debug("%s", "saved to cache!")
 
-    return confirmed_df, apple_mobility, ch_lockdown_data, ch_re_data, owid_data
+    return confirmed_df, apple_mobility, ch_lockdown_data, ch_re_data, owid_data, policies
 
 
-def get_cached_data():
+def get_cached_data() -> tuple[pd.DataFrame, ...]:
     c = 0
     try:
         logger.debug("%s", "Reading from cache...")
@@ -48,13 +52,14 @@ def get_cached_data():
         ch_lockdown_data = read_from_file("ch_lockdown_data")
         ch_re_data = read_from_file("ch_re_data")
         owid_data = read_from_file("owid_data")
+        policies = read_from_file("policies")
     except FileNotFoundError:
         c += 1
         if c > 3:
             raise RecursionError
         get_new_data()
         get_cached_data()
-    return confirmed_df, apple_mobility, ch_lockdown_data, ch_re_data, owid_data
+    return confirmed_df, apple_mobility, ch_lockdown_data, ch_re_data, owid_data, policies
 
 
 def get_current_apple_url():
