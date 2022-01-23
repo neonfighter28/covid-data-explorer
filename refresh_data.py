@@ -44,7 +44,6 @@ def get_new_data() -> tuple[pd.DataFrame, ...]:
 
 
 def get_cached_data() -> tuple[pd.DataFrame, ...]:
-    c = 0
     try:
         logger.debug("%s", "Reading from cache...")
         confirmed_df = read_from_file("confirmed_df")
@@ -54,9 +53,6 @@ def get_cached_data() -> tuple[pd.DataFrame, ...]:
         owid_data = read_from_file("owid_data")
         policies = read_from_file("policies")
     except FileNotFoundError:
-        c += 1
-        if c > 3:
-            raise RecursionError
         get_new_data()
         get_cached_data()
     return confirmed_df, apple_mobility, ch_lockdown_data, ch_re_data, owid_data, policies
