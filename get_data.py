@@ -37,7 +37,7 @@ import numpy as np
 from scipy.stats.stats import pearsonr
 
 import refresh_data
-from config import DATES_RE, LOG_CONFIG, LOG_LEVEL
+from config import DATES_RE, LOG_CONFIG, LOG_LEVEL, OPTIONS_SET_1
 
 plt.style.use('seaborn-poster')
 timestart = time.perf_counter()
@@ -130,7 +130,7 @@ def interp_nans(x: list[float], left=None, right=None, period=None) -> list[floa
 
 
 def add_nans_to_start_of_list(re, nan=DATES_RE, factor=100):
-    # The first 26 days are not included in this dataset
+    # The first 26 days are not included in the dataset
     x = [np.nan for _ in range(nan)]
     for i in re:
         x.append(rround(i * factor, 1))
@@ -296,6 +296,15 @@ class PlotHandler:
         match case:
             case "re_data":
                 axis.set_ylim(ymin=0, ymax=200)
+
+    def plot_arbitrary_values(self, value):
+        self.format_plot()
+        try:
+            assert value in OPTIONS_SET_1
+            axis = AxisHandler.get_axis(f"Arbitrary: {value}")
+            axis.plot(self.data.owid_data[value].to_list(), label=value)
+        except AssertionError:
+            return NotImplemented
 
     def plot_cases(self):
         self.format_plot()

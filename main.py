@@ -6,7 +6,7 @@ import sys
 import get_data
 from config import LOG_CONFIG, LOG_LEVEL
 
-COMMANDS = ["plt", "plot", "set"]  # Valid commands
+COMMANDS = ["plt", "plot", "help", "h"]  # Valid commands
 
 
 class InputFailure(BaseException):
@@ -62,8 +62,15 @@ class InputHandler():
         match self.command:
             case "plot" | "plt":
                 self.plot_graphs(self.args)
+            case "help" | "h":
+                if self.args:
+                    match args[0]:
+                        case "data":
+                            print()
+                main(failure=True)
+
             case _:
-                raise ValueError
+                raise ValueError(f"Bad command {self.command}")
 
     def plot_graphs(self, args):
         """
@@ -126,7 +133,9 @@ class InputHandler():
                     logger.debug("%s", "Plotting Stringency Index")
                     self.connection.plot_stringency_index()
                 case _:
-                    logger.warning("%s", f"Data not found for {argument}")
+                    logger.debug("%s", f"Plotting values for {argument}")
+                    if self.connection.plot_arbitrary_values(argument) == NotImplemented:
+                        logger.warning("%s", f"Data not found for {argument}")
 
         if self.show_plot:
             logger.debug("%s", "Showing plot...")
@@ -135,6 +144,7 @@ class InputHandler():
             logger.debug("%s", "Not showing plot")
 
         del self.connection
+
         # raise InputFailure  # Repeat Input sequence until Ctrl+C is pressed or exit is entered
 
 

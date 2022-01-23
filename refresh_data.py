@@ -75,7 +75,7 @@ def get_re_data_url():
     #       resources:
     #           resource["name"] == "COVID19Re_geoRegion"
     #           resource["format"] == "CSV"
-    #           -> resource["download-url"] -> download url to be returned
+    #           -> resource["download-url"] -> Download URL to be returned
 
     results = response["result"]["results"]
 
