@@ -59,3 +59,14 @@ Reproduction values, provided by Bundesamt für Gesundheit
 
 ## 4. Usage
 
+    ```txt
+    plt | plot
+        --country   | -c    [COUNTRY]       | Default: switzerland
+        NotImplemented --startdate | -sd   [DD.MM.YY]      | Default: None
+        NotImplemented --enddate   | -ed   [DD.MM.YY]      | Default: None
+        --show      | -s    [bool]          | Default: True Whether to show the plot
+        --data      | -d    [ARG+ARG+...]   | Default: None
+    help
+        data
+        country
+    ```

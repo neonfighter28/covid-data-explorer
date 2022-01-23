@@ -1,7 +1,7 @@
 import logging
 import pandas as pd
 import requests
-import pickle
+import pickle  # nosec
 from config import LOG_CONFIG, LOG_LEVEL
 
 
@@ -58,15 +58,19 @@ def get_current_apple_url():
     response = requests.get(
         "https://covid19-static.cdn-apple.com/covid19-mobility-data/current/v3/index.json"
     ).json()
-    uri = ("https://covid19-static.cdn-apple.com/"
-           + response['basePath']
-           + response['regions']['en-us']['csvPath'])
+    uri = (
+        "https://covid19-static.cdn-apple.com/"
+        + response["basePath"]
+        + response["regions"]["en-us"]["csvPath"]
+    )
     logger.debug("%s", f"Apple URI: {uri}")
     return uri
 
 
 def get_re_data_url():
-    response = requests.get("https://ckan.opendata.swiss/api/3/action/package_search?q=title:COVID19").json()
+    response = requests.get(
+        "https://ckan.opendata.swiss/api/3/action/package_search?q=title:COVID19"
+    ).json()
 
     # Structure of response
     # result:
@@ -88,7 +92,10 @@ def get_re_data_url():
             pass
 
     for resource in resources:
-        if "COVID19Re_geoRegion" in resource["title"]["en"] and resource["format"].lower() == "csv":
+        if (
+            "COVID19Re_geoRegion" in resource["title"]["en"]
+            and resource["format"].lower() == "csv"
+        ):
             download_url = resource["download_url"]
             logger.info("%s", f"Download URL for R_e data: {download_url}")
             return download_url
@@ -97,13 +104,17 @@ def get_re_data_url():
 def save_to_file(name, data):
     with open(f"assets/{name}.dat", "wb") as file:
         logger.debug("%s", f"Saving to file {file.name}")
-        pickle.dump(data, file)
+        # It is reasonable to assume there is no malicious data,
+        # as all pickled data is created by this function
+        pickle.dump(data, file)  # nosec
 
 
 def read_from_file(name):
     with open(f"assets/{name}.dat", "rb") as file:
         logger.debug("%s", f"Reading from file {file.name}")
-        return pickle.load(file)
+        # It is reasonable to assume there is no malicious data,
+        # as all pickled data is created by the function save_to_file
+        return pickle.load(file)  # nosec
 
 
 # Get logger for main level, if this is is run as main, its properties will

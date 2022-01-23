@@ -29,9 +29,7 @@ def split_input(input_string) -> tuple[str, list[str]]:
     args = input_string.split()[1:]
     logger.debug("%s", f"COMMAND {command}")
     logger.debug("%s", f"ARGS {args}")
-    try:
-        assert command in COMMANDS
-    except AssertionError:
+    if command not in COMMANDS:
         logger.fatal("%s", f"Command invalid {command}")
         print("Command invalid, retry")
         main(failure=True)  # Retry
@@ -52,7 +50,7 @@ def unpack_args(args) -> Argument(str, str):
         raise InputFailure from exc
 
 
-class InputHandler():
+class InputHandler:
     """
     Handles User Input and dispatches command
     """
@@ -105,7 +103,8 @@ class InputHandler():
                     data_arguments = argument.value
                 case "--show" | "-s":
                     self.show_plot = json.loads(
-                        argument.value.lower())  # Load string safely as bool
+                        argument.value.lower()
+                    )  # Load string safely as bool
 
         self.country = "switzerland" if not self.country else self.country
         self.start_date = None if not self.start_date else self.start_date
@@ -114,10 +113,14 @@ class InputHandler():
         if not data_arguments:  # Need data to plot
             raise InputFailure
         logger.debug(
-            "%s", f"{self.country = }, {self.start_date = }, {self.end_date = }, {data_arguments = }")
+            "%s",
+            f"{self.country = }, {self.start_date = }, {self.end_date = }, {data_arguments = }",
+        )
         self.connection = get_data.PlotHandler(country=self.country)
 
-        for argument in data_arguments.split("+"):  # Data arguments are supposed to be separated by a "+"
+        for argument in data_arguments.split(
+            "+"
+        ):  # Data arguments are supposed to be separated by a "+"
             logger.debug("%s", argument)
             match argument.lower():
                 case "cs" | "cases":
@@ -137,7 +140,10 @@ class InputHandler():
                     self.connection.plot_stringency_index()
                 case _:
                     logger.debug("%s", f"Plotting values for {argument}")
-                    if self.connection.plot_arbitrary_values(argument) == NotImplemented:
+                    if (
+                        self.connection.plot_arbitrary_values(argument)
+                        == NotImplemented
+                    ):
                         logger.warning("%s", f"Data not found for {argument}")
 
         if self.show_plot:
