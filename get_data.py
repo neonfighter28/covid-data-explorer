@@ -212,7 +212,7 @@ class Data:
             return list(zip(*value))[0]
 
     def get_confirmed_daily(self):
-        confirmed_daily = [0 for _ in range(3)]
+        confirmed_daily = [0 for _ in range(6)]
         k_minus_1 = 0
         for index, (_, value) in enumerate(self._build_def_data().items()):
             if index < 2:
@@ -277,7 +277,6 @@ class AxisHandler:
                 handles.append(handle)
                 labels.append(label)
         return handles, labels
-
 
 
 class PlotHandler:
