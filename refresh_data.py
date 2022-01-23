@@ -54,7 +54,7 @@ def get_cached_data() -> tuple[pd.DataFrame, ...]:
     return apple_mobility, ch_lockdown_data, ch_re_data, owid_data, policies
 
 
-def get_current_apple_url():
+def get_current_apple_url() -> str:
     response = requests.get(
         "https://covid19-static.cdn-apple.com/covid19-mobility-data/current/v3/index.json"
     ).json()
@@ -67,7 +67,7 @@ def get_current_apple_url():
     return uri
 
 
-def get_re_data_url():
+def get_re_data_url() -> str:
     response = requests.get(
         "https://ckan.opendata.swiss/api/3/action/package_search?q=title:COVID19"
     ).json()
@@ -101,7 +101,7 @@ def get_re_data_url():
             return download_url
 
 
-def save_to_file(name, data):
+def save_to_file(name, data) -> None:
     with open(f"assets/{name}.dat", "wb") as file:
         logger.debug("%s", f"Saving to file {file.name}")
         # It is reasonable to assume there is no malicious data,
@@ -109,7 +109,7 @@ def save_to_file(name, data):
         pickle.dump(data, file)  # nosec
 
 
-def read_from_file(name):
+def read_from_file(name) -> pd.DataFrame:
     with open(f"assets/{name}.dat", "rb") as file:
         logger.debug("%s", f"Reading from file {file.name}")
         # It is reasonable to assume there is no malicious data,
