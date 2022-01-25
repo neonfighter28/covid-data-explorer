@@ -3,7 +3,6 @@ from logging import DEBUG  # Loglevels
 # config
 CACHE = True
 LOG_CONFIG = "%(levelname)s %(filename)s %(funcName)s %(lineno)d: - %(message)s"
-DATES_RE = 27
 LOG_LEVEL = DEBUG
 
 OPTIONS_SET_1 = [
@@ -70,4 +69,12 @@ OPTIONS_SET_1 = [
     "excess_mortality_cumulative",
     "excess_mortality",
     "excess_mortality_cumulative_per_million"
+]
+
+TEST_CASES = [
+    "plot -cc germany+italy -d cs",
+    #"plot -d re+cs -s False",
+    #"plot -s False -d cs+mb",
+    #"plot -c germany -s False -d cs+str+re+mb",
+    #"plot -c United-States -s False -d cs+str+re+mb"
 ]

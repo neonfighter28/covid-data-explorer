@@ -16,7 +16,7 @@ import numpy as np
 from scipy.stats.stats import pearsonr
 
 import refresh_data
-from config import DATES_RE, OPTIONS_SET_1
+from config import OPTIONS_SET_1
 
 plt.style.use("seaborn-poster")
 random.seed(19)  # 19 for Covid-19 :P
@@ -63,9 +63,9 @@ def daily_increase(data):
 
 def moving_average(data, window_size=7):
     return [
-        np.mean(data[i:i + window_size])
+        np.mean(data[i : i + window_size])
         if i + window_size < len(data)
-        else np.mean(data[i:len(data)])
+        else np.mean(data[i : len(data)])
         for i in range(len(data))
     ]
 
@@ -94,14 +94,6 @@ def interp_nans(x: list[float], left=None, right=None, period=None) -> list[floa
     return [rround(i, 1) for i in lst]
 
 
-def add_nans_to_start_of_list(re, nan=DATES_RE, factor=100):
-    # The first 26 days are not included in the dataset
-    x = [np.nan for _ in range(nan)]
-    for i in re:
-        x.append(rround(i * factor, 1))
-    return x
-
-
 class ColorHandler:
     cmap = matplotlib.cm.get_cmap("Spectral")
     colors = {}
@@ -123,6 +115,10 @@ class Data:
     """
 
     def __init__(self, country="switzerland", use_cache="True") -> None:
+
+        if isinstance(country, list):
+            ...
+
         if "-" in country:
             country = country.replace("-", " ")  # See HELP_COUNTRY
         self.country = country
@@ -161,17 +157,20 @@ class Data:
         self.owid_data_for_country = self.owid_data[
             self.owid_data.location == self.capitalized_country
         ]
-        self.cases_for_country = self.owid_data_for_country.new_cases.fillna(0).to_list()
+        self.cases_for_country = self.owid_data_for_country.new_cases.fillna(
+            0
+        ).to_list()
         self.dates_owid = self.owid_data_for_country.date.to_list()
 
         self.ch_re_data = self.ch_re_data.loc[self.ch_re_data["geoRegion"] == "CH"]
+        self.ch_re_dates = self.ch_re_data.date.to_list()
         # self.re_date = self.data.ch_re_data.date.to_list()
         re_mean = self.ch_re_data.median_R_mean.to_list()
         re_high = self.ch_re_data.median_R_highHPD.to_list()
         re_low = self.ch_re_data.median_R_lowHPD.to_list()
-        self.re_mean = add_nans_to_start_of_list(re_mean)
-        self.re_high = add_nans_to_start_of_list(re_high)
-        self.re_low = add_nans_to_start_of_list(re_low)
+        self.re_mean = re_mean
+        self.re_high = re_high
+        self.re_low = re_low
 
         self.re_value_other = self.owid_data[
             self.owid_data.location == self.capitalized_country
@@ -179,7 +178,9 @@ class Data:
         self.re_value_other = self.re_value_other.reproduction_rate.to_list()
         self.re_value_other = [i * 100 for i in self.re_value_other]
 
-        self.traffic_data_for_country = self.apple_mobility[self.apple_mobility.region == self.capitalized_country]
+        self.traffic_data_for_country = self.apple_mobility[
+            self.apple_mobility.region == self.capitalized_country
+        ]
         self.datasets_as_xy = prep_apple_mobility_data(self.traffic_data_for_country)
         self.data_x = self.apple_mobility.columns.to_list()[6:]
 
@@ -278,11 +279,15 @@ class PlotHandler:
             label=value,
             color=ColorHandler.get_color(value),
         )
+        return None
 
     def plot_cases(self):
         self.format_plot()
 
-        axis = AxisHandler.get_axis(name="cases", ymax=average(sorted(self.data.cases_for_country, reverse=True)[:10]))
+        axis = AxisHandler.get_axis(
+            name="cases",
+            ymax=average(sorted(self.data.cases_for_country, reverse=True)[:10]),
+        )
 
         axis.plot(
             self.data.dates_owid,
@@ -307,10 +312,10 @@ class PlotHandler:
         axis.grid(color="cyan", axis="y", alpha=0.5)
 
         axis.fill_between(
-            self.data.dates[13:], self.data.re_low, self.data.re_mean, alpha=0.5
+            self.data.ch_re_dates, self.data.re_low, self.data.re_mean, alpha=0.5
         )
         axis.fill_between(
-            self.data.dates[13:], self.data.re_high, self.data.re_mean, alpha=0.5
+            self.data.ch_re_dates, self.data.re_high, self.data.re_mean, alpha=0.5
         )
 
     def _plot_other_re_data(self):
@@ -398,7 +403,9 @@ class PlotHandler:
         logger.debug("%s", "Plotting lockdown data")
         axis = AxisHandler.get_axis(name="lockdown_data")
         axis.set_yticks([])  # this needs no ticks
-        axis.plot(self.data.dates_owid, [0 for _ in range(len(self.data.dates_owid))], alpha=0)
+        axis.plot(
+            self.data.dates_owid, [0 for _ in range(len(self.data.dates_owid))], alpha=0
+        )
         if self.data.country.lower() == "switzerland":
             ausweitungen = []
             lockerungen = []

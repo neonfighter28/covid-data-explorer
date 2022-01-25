@@ -89,6 +89,9 @@ class InputHandler:
         self.show_plot = True
         data_arguments = None
 
+        self.is_crosscountry = False
+        self.countries: list = []
+
         for argument in self.arguments:
             match argument.name:
                 case "--country" | "-c":
@@ -99,6 +102,9 @@ class InputHandler:
                 case "--enddate" | "-ed":
                     self.end_date = argument.value
                     raise NotImplementedError
+                case "--cross-country" | "-cc":
+                    self.is_crosscountry = True
+                    self.countries = argument.value
                 case "--data" | "-d":
                     data_arguments = argument.value
                 case "--show" | "-s":
@@ -107,6 +113,7 @@ class InputHandler:
                     )  # Load string safely as bool
 
         self.country = "switzerland" if not self.country else self.country
+        self.country = self.countries if self.is_crosscountry else self.country
         self.start_date = None if not self.start_date else self.start_date
         self.end_date = None if not self.end_date else self.end_date
         data_arguments = None if not data_arguments else data_arguments
@@ -146,6 +153,8 @@ class InputHandler:
                     ):
                         logger.warning("%s", f"Data not found for {argument}")
 
+        if not self.connection.ax_handler._axis:
+            raise InputFailure(f"Bad -d argument {argument}")
         if self.show_plot:
             logger.debug("%s", "Showing plot...")
             self.connection.show_plot(exit_after=False)
