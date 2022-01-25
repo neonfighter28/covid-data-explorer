@@ -112,7 +112,7 @@ class InputHandler:
                         argument.value.lower()
                     )  # Load string safely as bool
 
-        self.country = "switzerland" if not self.country else self.country
+        self.country = ["switzerland"] if not self.country else self.country
         self.country = self.countries if self.is_crosscountry else self.country
         self.start_date = None if not self.start_date else self.start_date
         self.end_date = None if not self.end_date else self.end_date

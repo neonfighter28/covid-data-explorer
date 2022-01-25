@@ -7,6 +7,7 @@ import logging
 import random
 import sys
 import time
+from typing import Callable
 import uuid
 from functools import cache
 
@@ -181,7 +182,6 @@ class Data:
         self.avg_traffic_data = moving_average([sum(e) / len(e) for e in zip(*self.datasets_as_xy)])
 
 
-
 class AxisHandler:
     """
     Class for returning new axes and its legends
@@ -217,6 +217,14 @@ class AxisHandler:
                 labels.append(label)
         return handles, labels
 
+called = []
+def memoize_func(func) -> Callable:
+    def wrapper(*args, **kwargs):
+        logger.debug("%s", f"{func.__name__} memorized")
+        called.append(func)
+        func(*args, **kwargs)
+    return wrapper
+
 
 class PlotHandler:
     """
@@ -224,17 +232,20 @@ class PlotHandler:
     """
 
     plot = None
+    _current_country = 0
 
-    def __init__(self, **kwargs):
-        self.data = Data(**kwargs)
+    def __init__(self, country=[]):
+        self.data = []
+        for c in country.split("+"):
+            self.data.append(Data())
 
         PlotHandler.plot = plt
 
-        self.data.data_x = self.data.data_x
         self.ax_handler = AxisHandler()
 
         self.formatted = False
 
+    @memoize_func
     def format_plot(self):
         """
         Format the plot as a matplotlib plot
@@ -244,99 +255,114 @@ class PlotHandler:
             PlotHandler.plot.xticks(
                 size=10,
                 rotation=90,
-                ticks=[i * 50 for i in range(int(len(self.data.dates_owid)) % 50)],
+                ticks=[i * 50 for i in range(int(len(self.data[PlotHandler._current_country].dates_owid)) % 50)],
             )
             self.formatted = True
 
+    @memoize_func
     def plot_arbitrary_values(self, value):
         self.format_plot()
         if value not in OPTIONS_SET_1:  # Value needs to be a datarow of the dataset
             return NotImplemented
         axis = AxisHandler.get_axis(f"Arbitrary: {value}")
         axis.plot(
-            self.data.dates_owid,
-            self.data.owid_data_for_country[value].to_list(),
+            self.data[PlotHandler._current_country].dates_owid,
+            self.data[PlotHandler._current_country].owid_data_for_country[value].to_list(),
             label=value,
             color=ColorHandler.get_color(value),
         )
         return None
 
+    @memoize_func
     def plot_cases(self):
         self.format_plot()
 
         axis = AxisHandler.get_axis(
             name="cases",
-            ymax=average(sorted(self.data.cases_for_country, reverse=True)[:10]),
+            ymax=average(sorted(self.data[PlotHandler._current_country].cases_for_country, reverse=True)[:10]),
         )
 
         axis.plot(
-            self.data.dates_owid,
-            moving_average(self.data.cases_for_country),
+            self.data[PlotHandler._current_country].dates_owid,
+            moving_average(self.data[PlotHandler._current_country].cases_for_country),
             color="blue",
-            label=f"Incidence {self.data.capitalized_country}, moving average",
+            label=f"Incidence {self.data[PlotHandler._current_country].capitalized_country}, moving average",
         )
         axis.grid(color="blue", axis="y", alpha=0.1)
 
+    @memoize_func
     def plot_re_data(self):
-        if self.data.country == "switzerland":
+        if self.data[PlotHandler._current_country].country == "switzerland":
             self._plot_ch_re_data()
         else:
             self._plot_other_re_data()
 
+    @memoize_func
     def _plot_ch_re_data(self):
         self.format_plot()
         axis = AxisHandler.get_axis(name="ch_re_data", ymin=0, ymax=200)
         axis.plot(
-            self.data.re_mean, label="Daily Reproduction Value smoothed for Switzerland"
+            self.data[PlotHandler._current_country].re_mean, label="Daily Reproduction Value smoothed for Switzerland"
         )
         axis.grid(color="cyan", axis="y", alpha=0.5)
 
         axis.fill_between(
-            self.data.ch_re_dates, self.data.re_low, self.data.re_mean, alpha=0.5
+            self.data[PlotHandler._current_country].ch_re_dates,
+            self.data[PlotHandler._current_country].re_low,
+            self.data[PlotHandler._current_country].re_mean, alpha=0.5
         )
         axis.fill_between(
-            self.data.ch_re_dates, self.data.re_high, self.data.re_mean, alpha=0.5
+            self.data[PlotHandler._current_country].ch_re_dates,
+            self.data[PlotHandler._current_country].re_high,
+            self.data[PlotHandler._current_country].re_mean, alpha=0.5
         )
 
+    @memoize_func
     def _plot_other_re_data(self):
         self.format_plot()
         axis = AxisHandler.get_axis(name="other_re_data", ymin=0, ymax=200)
         axis.plot(
-            self.data.re_value_other,
-            label=f"Daily Reproduction Value smoothed for {self.data.capitalized_country}",
+            self.data[PlotHandler._current_country].re_value_other,
+            label=f"Daily Reproduction Value smoothed for {self.data[PlotHandler._current_country].capitalized_country}",
         )
 
+    @memoize_func
     def show_plot(self, exit_after=False):
+        for i in called:
+            # i(self)
+            PlotHandler._current_country += 1
         handles, labels = AxisHandler.get_legends()
         PlotHandler.plot.legend(handles, labels, loc="best")
         PlotHandler.plot.show()
         if exit_after:
             sys.exit(0)
 
+    @memoize_func
     def plot_stringency_index(self):
         axis = AxisHandler.get_axis("stringency_index", ymin=0, ymax=100)
         axis.plot(
-            self.data.policies_for_country.StringencyIndex.to_list(),
+            self.data[PlotHandler._current_country].policies_for_country.StringencyIndex.to_list(),
             label="Stringency Index",
         )
 
+    @memoize_func
     def plot_traffic_data(self):
         self.format_plot()
         axis = AxisHandler.get_axis(name="traffic_data", ymin=0, ymax=200)
         PlotHandler.plot.xticks(
             size=10,
             rotation=90,
-            ticks=[i * 25 for i in range(int(len(self.data.dates_owid) / 2) % 100)],
+            ticks=[i * 25 for i in range(int(len(self.data[PlotHandler._current_country].dates_owid) / 2) % 100)],
         )
         logger.debug("%s", "Plotting traffic data")
 
-        for index, data_y in enumerate(self.data.datasets_as_xy):
+        for index, data_y in enumerate(self.data[PlotHandler._current_country].datasets_as_xy):
             data_y = interp_nans(data_y)
             match index:
                 case 0:
                     self._plot_traffic_data(
                         axis,
-                        self.data.data_x,
+                        self.data[PlotHandler._current_country].data_x,
                         moving_average(data_y),
                         color="#FE9402",
                         label="Driving (%)",
@@ -344,7 +370,7 @@ class PlotHandler:
                 case 1:
                     self._plot_traffic_data(
                         axis,
-                        self.data.data_x,
+                        self.data[PlotHandler._current_country].data_x,
                         moving_average(data_y),
                         color="#FE2D55",
                         label="Transit (%)",
@@ -352,7 +378,7 @@ class PlotHandler:
                 case 2:
                     self._plot_traffic_data(
                         axis,
-                        self.data.data_x,
+                        self.data[PlotHandler._current_country].data_x,
                         moving_average(data_y),
                         color="#AF51DE",
                         label="Walking (%)",
@@ -360,7 +386,7 @@ class PlotHandler:
                 case _:
                     self._plot_traffic_data(
                         axis,
-                        self.data.data_x,
+                        self.data[PlotHandler._current_country].data_x,
                         moving_average(data_y),
                         color="black",
                         label="unknown datapoint",
@@ -369,65 +395,68 @@ class PlotHandler:
             " Increase of traffic routing requests in %, baseline at 100", size=20
         )
         axis.plot(
-            self.data.data_x,
-            interp_nans(self.data.avg_traffic_data),
+            self.data[PlotHandler._current_country].data_x,
+            interp_nans(self.data[PlotHandler._current_country].avg_traffic_data),
             color="green",
             label="Average mobility data",
         )
 
+    @memoize_func
     def _plot_traffic_data(self, axis, x, y, **kwargs):
         axis.plot(x, moving_average(y), alpha=0.5, **kwargs)
 
+    @memoize_func
     def plot_lockdown_data(self):
         self.format_plot()
         logger.debug("%s", "Plotting lockdown data")
         axis = AxisHandler.get_axis(name="lockdown_data")
         axis.set_yticks([])  # this needs no ticks
         axis.plot(
-            self.data.dates_owid, [0 for _ in range(len(self.data.dates_owid))], alpha=0
+            self.data[PlotHandler._current_country].dates_owid, [0 for _ in range(len(self.data[PlotHandler._current_country].dates_owid))], alpha=0
         )
-        if self.data.country.lower() == "switzerland":
+        if self.data[PlotHandler._current_country].country.lower() == "switzerland":
             ausweitungen = []
             lockerungen = []
             dates = []
             ind = 0
-            for date in self.data.dates_as_str:
-                if str(date) in list(self.data.ch_lockdown_data.Datum):
-                    i = list(self.data.ch_lockdown_data.Datum).index(date)
-                    if self.data.ch_lockdown_data.Kategorisierung[ind] == "Ausweitung":
+            for date in self.data[PlotHandler._current_country].dates_as_str:
+                if str(date) in list(self.data[PlotHandler._current_country].ch_lockdown_data.Datum):
+                    i = list(self.data[PlotHandler._current_country].ch_lockdown_data.Datum).index(date)
+                    if self.data[PlotHandler._current_country].ch_lockdown_data.Kategorisierung[ind] == "Ausweitung":
                         ausweitungen.append(date)
-                    elif self.data.ch_lockdown_data.Kategorisierung[ind] == "Lockerung":
+                    elif self.data[PlotHandler._current_country].ch_lockdown_data.Kategorisierung[ind] == "Lockerung":
                         lockerungen.append(date)
                     dates.append(date)
                     ind += 1
             PlotHandler.plot.vlines(
                 x=ausweitungen,
                 ymin=0,
-                ymax=max(self.data.cases_for_country),
+                ymax=max(self.data[PlotHandler._current_country].cases_for_country),
                 color="red",
                 linestyles="dashed",
             )
             PlotHandler.plot.vlines(
                 x=lockerungen,
                 ymin=0,
-                ymax=max(self.data.cases_for_country),
+                ymax=max(self.data[PlotHandler._current_country].cases_for_country),
                 color="green",
                 linestyles="dashed",
             )
             for i, x in enumerate(dates):
-                t = self.data.ch_lockdown_data.Beschreibung.to_list()[i]
+                t = self.data[PlotHandler._current_country].ch_lockdown_data.Beschreibung.to_list()[i]
                 plt.text(
                     x,
-                    max(self.data.cases_for_country),
+                    max(self.data[PlotHandler._current_country].cases_for_country),
                     t,
                     rotation=90,
                     verticalalignment="top",
                 )
 
+    @memoize_func
     def log_pearson_constant(self):
         # Calculate pearson const.
-        n_traffic_data = normalize(moving_average(self.data.avg_traffic_data, 50))
-        n_daily_incidence = normalize(moving_average(self.data.cases_for_country, 50))
+        n_traffic_data = normalize(moving_average(self.data[PlotHandler._current_country].avg_traffic_data, 50))
+        n_daily_incidence = normalize(moving_average(self.data[PlotHandler._current_country].cases_for_country, 50))
         logger.debug(
             "%s", f"Pearson Constant: {pearsonr(n_traffic_data[2:], n_daily_incidence)}"
         )
