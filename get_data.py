@@ -13,6 +13,7 @@ from functools import cache
 import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 from scipy.stats.stats import pearsonr
 
 import refresh_data
@@ -70,14 +71,6 @@ def moving_average(data, window_size=7):
     ]
 
 
-def prep_apple_mobility_data(apple_mobility) -> list[int, int]:
-    # Get corresponding data row indexes for country:
-    return [
-        [item for index, item in enumerate(row) if index > 6]
-        for row in apple_mobility.itertuples()
-    ]
-
-
 def interp_nans(x: list[float], left=None, right=None, period=None) -> list[float]:
     # Very resource intensive
     lst = list(
@@ -113,12 +106,13 @@ class Data:
     """
     This Class handles all data
     """
+    apple_mobility: pd.DataFrame
+    ch_lockdown_data: pd.DataFrame
+    ch_re_data: pd.DataFrame
+    owid_data: pd.DataFrame
+    policies: pd.DataFrame
 
     def __init__(self, country="switzerland", use_cache="True") -> None:
-
-        if isinstance(country, list):
-            ...
-
         if "-" in country:
             country = country.replace("-", " ")  # See HELP_COUNTRY
         self.country = country
@@ -126,36 +120,27 @@ class Data:
         logger.debug("%s", f"{self.country = }, {self.cache = }")
 
         (
-            self.apple_mobility,
-            self.ch_lockdown_data,
-            self.ch_re_data,
-            self.owid_data,
-            self.policies,
+            Data.apple_mobility,
+            Data.ch_lockdown_data,
+            Data.ch_re_data,
+            Data.owid_data,
+            Data.policies,
         ) = refresh_data.get_cached_data()
-        self.datasets_as_xy = None
-        self.avg_traffic_data = None
-        self.re_value_other = None
 
-        self.re_mean = None
-        self.re_low = None
-        self.re_high = None
-
-        self._build_data()
-
-    def _build_data(self):
         self.capitalized_country = self.country[:1].upper() + self.country[1:]
-        self.policies_for_country = self.policies[
-            self.policies.CountryName == self.capitalized_country
+        logger.debug("%s", f"{self.capitalized_country = }")
+        self.policies_for_country = Data.policies[
+            Data.policies.CountryName == self.capitalized_country
         ]
-        self.policies_for_country = self.policies[
-            self.policies.CountryName == self.capitalized_country
+        self.policies_for_country = Data.policies[
+            Data.policies.CountryName == self.capitalized_country
         ]
         self.ch_lockdown_data = self.ch_lockdown_data[
-            self.ch_lockdown_data.Kategorisierung != "Ferien"
+            Data.ch_lockdown_data.Kategorisierung != "Ferien"
         ]
 
-        self.owid_data_for_country = self.owid_data[
-            self.owid_data.location == self.capitalized_country
+        self.owid_data_for_country = Data.owid_data[
+            Data.owid_data.location == self.capitalized_country
         ]
         self.cases_for_country = self.owid_data_for_country.new_cases.fillna(
             0
@@ -165,15 +150,13 @@ class Data:
         self.ch_re_data = self.ch_re_data.loc[self.ch_re_data["geoRegion"] == "CH"]
         self.ch_re_dates = self.ch_re_data.date.to_list()
         # self.re_date = self.data.ch_re_data.date.to_list()
-        re_mean = self.ch_re_data.median_R_mean.to_list()
-        re_high = self.ch_re_data.median_R_highHPD.to_list()
-        re_low = self.ch_re_data.median_R_lowHPD.to_list()
-        self.re_mean = re_mean
-        self.re_high = re_high
-        self.re_low = re_low
 
-        self.re_value_other = self.owid_data[
-            self.owid_data.location == self.capitalized_country
+        self.re_mean = self.ch_re_data.median_R_mean.to_list()
+        self.re_high = self.ch_re_data.median_R_highHPD.to_list()
+        self.re_low = self.ch_re_data.median_R_lowHPD.to_list()
+
+        self.re_value_other = Data.owid_data[
+            Data.owid_data.location == self.capitalized_country
         ]
         self.re_value_other = self.re_value_other.reproduction_rate.to_list()
         self.re_value_other = [i * 100 for i in self.re_value_other]
@@ -181,7 +164,10 @@ class Data:
         self.traffic_data_for_country = self.apple_mobility[
             self.apple_mobility.region == self.capitalized_country
         ]
-        self.datasets_as_xy = prep_apple_mobility_data(self.traffic_data_for_country)
+        self.datasets_as_xy = [
+            [item for index, item in enumerate(row) if index > 6]
+            for row in self.traffic_data_for_country.itertuples()
+        ]
         self.data_x = self.apple_mobility.columns.to_list()[6:]
 
         start_date = datetime(2020, 1, 1).date()
@@ -192,14 +178,8 @@ class Data:
         self.dates_as_str = [str(date) for date in self.dates]
 
         # Depends on datasets_as_xy
-        self.avg_traffic_data = self.get_avg_traffic_data()
+        self.avg_traffic_data = moving_average([sum(e) / len(e) for e in zip(*self.datasets_as_xy)])
 
-    def get_x_data(self):
-        return self.apple_mobility.columns.to_list()[6:]
-
-    def get_avg_traffic_data(self):
-        # Get average of all lists
-        return moving_average([sum(e) / len(e) for e in zip(*self.datasets_as_xy)])
 
 
 class AxisHandler:
