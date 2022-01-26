@@ -28,6 +28,7 @@ def test_switzerland():
     ]
     run(BASE_TEST, CASES)
 
+
 def test_single_country():
     BASE_TEST = "plot -c germany"
     CASES = [

@@ -135,7 +135,7 @@ class Data:
         self.policies_for_country = Data.policies[
             Data.policies.CountryName == self.capitalized_country
         ]
-        self.ch_lockdown_data = self.ch_lockdown_data[
+        Data.ChData.lockdown_data = Data.ch_lockdown_data[
             Data.ch_lockdown_data.Kategorisierung != "Ferien"
         ]
 
@@ -147,13 +147,13 @@ class Data:
         ).to_list()
         self.dates_owid = self.owid_data_for_country.date.to_list()
 
-        self.ch_re_data = self.ch_re_data.loc[self.ch_re_data["geoRegion"] == "CH"]
-        self.ch_re_dates = self.ch_re_data.date.to_list()
+        Data.ch_re_data = Data.ch_re_data.loc[Data.ch_re_data["geoRegion"] == "CH"]
+        Data.ChData.re_dates = Data.ch_re_data.date.to_list()
         # self.re_date = self.data.ch_re_data.date.to_list()
 
-        self.re_mean = self.ch_re_data.median_R_mean.to_list()
-        self.re_high = self.ch_re_data.median_R_highHPD.to_list()
-        self.re_low = self.ch_re_data.median_R_lowHPD.to_list()
+        Data.ChData.re_mean = Data.ch_re_data.median_R_mean.to_list()
+        Data.ChData.re_high = Data.ch_re_data.median_R_highHPD.to_list()
+        Data.ChData.re_low = Data.ch_re_data.median_R_lowHPD.to_list()
 
         self.re_value_other = Data.owid_data[
             Data.owid_data.location == self.capitalized_country
@@ -182,12 +182,23 @@ class Data:
             [sum(e) / len(e) for e in zip(*self.datasets_as_xy)]
         )
 
+    class ChData:
+        """
+        Subclass swiss data
+        """
+        re_data: pd.DataFrame
+        re_mean: list[float]
+        re_high: list[float]
+        re_low: list[float]
+
+        re_dates: list[str]
+        lockdown_data: pd.DataFrame
+
 
 class AxisHandler:
     """
     Class for returning new axes and its legends
     """
-
     _axis = {}
 
     @staticmethod
@@ -309,21 +320,21 @@ class PlotHandler:
         self.format_plot()
         axis = AxisHandler.get_axis(name="ch_re_data", ymin=0, ymax=200)
         axis.plot(
-            self.data[PlotHandler._current_country].re_mean,
+            Data.ChData.re_mean,
             label="Daily Reproduction Value smoothed for Switzerland",
         )
         axis.grid(color="cyan", axis="y", alpha=0.5)
 
         axis.fill_between(
-            self.data[PlotHandler._current_country].ch_re_dates,
-            self.data[PlotHandler._current_country].re_low,
-            self.data[PlotHandler._current_country].re_mean,
+            Data.ChData.re_dates,
+            Data.ChData.re_low,
+            Data.ChData.re_mean,
             alpha=0.5,
         )
         axis.fill_between(
-            self.data[PlotHandler._current_country].ch_re_dates,
-            self.data[PlotHandler._current_country].re_high,
-            self.data[PlotHandler._current_country].re_mean,
+            Data.ChData.re_dates,
+            Data.ChData.re_high,
+            Data.ChData.re_mean,
             alpha=0.5,
         )
 
@@ -431,22 +442,18 @@ class PlotHandler:
             ind = 0
             for date in self.data[PlotHandler._current_country].dates_as_str:
                 if str(date) in list(
-                    self.data[PlotHandler._current_country].ch_lockdown_data.Datum
+                    Data.ChData.lockdown_data.Datum
                 ):
                     i = list(
-                        self.data[PlotHandler._current_country].ch_lockdown_data.Datum
+                        Data.ChData.lockdown_data.Datum
                     ).index(date)
                     if (
-                        self.data[
-                            PlotHandler._current_country
-                        ].ch_lockdown_data.Kategorisierung[ind]
+                        Data.ChData.lockdown_data.Kategorisierung[ind]
                         == "Ausweitung"
                     ):
                         ausweitungen.append(date)
                     elif (
-                        self.data[
-                            PlotHandler._current_country
-                        ].ch_lockdown_data.Kategorisierung[ind]
+                        Data.ChData.lockdown_data.Kategorisierung[ind]
                         == "Lockerung"
                     ):
                         lockerungen.append(date)
