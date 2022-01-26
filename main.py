@@ -104,7 +104,7 @@ class InputHandler:
                     raise NotImplementedError
                 case "--cross-country" | "-cc":
                     self.is_crosscountry = True
-                    self.countries = argument.value
+                    self.countries = argument.value.split("+")
                 case "--data" | "-d":
                     data_arguments = argument.value
                 case "--show" | "-s":
@@ -112,7 +112,7 @@ class InputHandler:
                         argument.value.lower()
                     )  # Load string safely as bool
 
-        self.country = ["switzerland"] if not self.country else self.country
+        self.country = ["switzerland"] if not self.country else [self.country]
         self.country = self.countries if self.is_crosscountry else self.country
         self.start_date = None if not self.start_date else self.start_date
         self.end_date = None if not self.end_date else self.end_date
@@ -137,8 +137,11 @@ class InputHandler:
                     logger.debug("%s", "Plotting R_e values")
                     self.connection.plot_re_data()
                 case "mb" | "mobility":
-                    logger.debug("%s", "Plotting mobility data")
+                    logger.debug("%s", "Plotting average mobility data")
                     self.connection.plot_traffic_data()
+                case "mbd" | "mobilitydetailed":
+                    logger.debug("%s", "Plotting detailed mobility data")
+                    self.connection.plot_traffic_data(detailed=True)
                 case "ld" | "lockdown":
                     logger.debug("%s", "Plotting lockdown data")
                     self.connection.plot_lockdown_data()

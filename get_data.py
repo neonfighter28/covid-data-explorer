@@ -7,7 +7,6 @@ import logging
 import random
 import sys
 import time
-from typing import Callable
 import uuid
 from functools import cache
 
@@ -179,7 +178,9 @@ class Data:
         self.dates_as_str = [str(date) for date in self.dates]
 
         # Depends on datasets_as_xy
-        self.avg_traffic_data = moving_average([sum(e) / len(e) for e in zip(*self.datasets_as_xy)])
+        self.avg_traffic_data = moving_average(
+            [sum(e) / len(e) for e in zip(*self.datasets_as_xy)]
+        )
 
 
 class AxisHandler:
@@ -217,14 +218,6 @@ class AxisHandler:
                 labels.append(label)
         return handles, labels
 
-called = []
-def memoize_func(func) -> Callable:
-    def wrapper(*args, **kwargs):
-        logger.debug("%s", f"{func.__name__} memorized")
-        called.append(func)
-        func(*args, **kwargs)
-    return wrapper
-
 
 class PlotHandler:
     """
@@ -233,11 +226,14 @@ class PlotHandler:
 
     plot = None
     _current_country = 0
+    countries: int
 
     def __init__(self, country=[]):
         self.data = []
-        for c in country.split("+"):
-            self.data.append(Data())
+
+        PlotHandler.countries = len(country)
+        for c in country:
+            self.data.append(Data(country=c))
 
         PlotHandler.plot = plt
 
@@ -245,7 +241,6 @@ class PlotHandler:
 
         self.formatted = False
 
-    @memoize_func
     def format_plot(self):
         """
         Format the plot as a matplotlib plot
@@ -255,164 +250,179 @@ class PlotHandler:
             PlotHandler.plot.xticks(
                 size=10,
                 rotation=90,
-                ticks=[i * 50 for i in range(int(len(self.data[PlotHandler._current_country].dates_owid)) % 50)],
+                ticks=[
+                    i * 25
+                    for i in range(
+                        int(len(self.data[PlotHandler._current_country].dates_owid))
+                        % 100
+                    )
+                ],
             )
             self.formatted = True
 
-    @memoize_func
-    def plot_arbitrary_values(self, value):
+    def plot_arbitrary_values(self, value) -> NotImplemented:
         self.format_plot()
         if value not in OPTIONS_SET_1:  # Value needs to be a datarow of the dataset
             return NotImplemented
+
         axis = AxisHandler.get_axis(f"Arbitrary: {value}")
-        axis.plot(
-            self.data[PlotHandler._current_country].dates_owid,
-            self.data[PlotHandler._current_country].owid_data_for_country[value].to_list(),
-            label=value,
-            color=ColorHandler.get_color(value),
-        )
+        for i in range(PlotHandler.countries):
+            print(i)
+            print(self.data[i])
+            axis.plot(
+                self.data[i].dates_owid,
+                self.data[i].owid_data_for_country[value].to_list(),
+                label=f"{self.data[i].capitalized_country} - {value}",
+                color=ColorHandler.get_color(f"{value}_{self.data[i].country}"),
+            )
         return None
 
-    @memoize_func
     def plot_cases(self):
         self.format_plot()
+        for i in range(PlotHandler.countries):
+            axis = AxisHandler.get_axis(
+                name="cases",
+                ymax=average(sorted(self.data[i].cases_for_country, reverse=True)[:10]),
+            )
 
-        axis = AxisHandler.get_axis(
-            name="cases",
-            ymax=average(sorted(self.data[PlotHandler._current_country].cases_for_country, reverse=True)[:10]),
+            axis.plot(
+                self.data[i].dates_owid,
+                moving_average(self.data[i].cases_for_country),
+                color=ColorHandler.get_color(
+                    f"cases_{self.data[i].capitalized_country}"
+                ),
+                label=f"Incidence {self.data[i].capitalized_country}, moving average",
+            )
+        axis.grid(
+            color=ColorHandler.get_color(f"cases_{self.data[i].capitalized_country}"),
+            axis="y",
+            alpha=0.1,
         )
 
-        axis.plot(
-            self.data[PlotHandler._current_country].dates_owid,
-            moving_average(self.data[PlotHandler._current_country].cases_for_country),
-            color="blue",
-            label=f"Incidence {self.data[PlotHandler._current_country].capitalized_country}, moving average",
-        )
-        axis.grid(color="blue", axis="y", alpha=0.1)
-
-    @memoize_func
     def plot_re_data(self):
         if self.data[PlotHandler._current_country].country == "switzerland":
             self._plot_ch_re_data()
         else:
             self._plot_other_re_data()
 
-    @memoize_func
     def _plot_ch_re_data(self):
         self.format_plot()
         axis = AxisHandler.get_axis(name="ch_re_data", ymin=0, ymax=200)
         axis.plot(
-            self.data[PlotHandler._current_country].re_mean, label="Daily Reproduction Value smoothed for Switzerland"
+            self.data[PlotHandler._current_country].re_mean,
+            label="Daily Reproduction Value smoothed for Switzerland",
         )
         axis.grid(color="cyan", axis="y", alpha=0.5)
 
         axis.fill_between(
             self.data[PlotHandler._current_country].ch_re_dates,
             self.data[PlotHandler._current_country].re_low,
-            self.data[PlotHandler._current_country].re_mean, alpha=0.5
+            self.data[PlotHandler._current_country].re_mean,
+            alpha=0.5,
         )
         axis.fill_between(
             self.data[PlotHandler._current_country].ch_re_dates,
             self.data[PlotHandler._current_country].re_high,
-            self.data[PlotHandler._current_country].re_mean, alpha=0.5
+            self.data[PlotHandler._current_country].re_mean,
+            alpha=0.5,
         )
 
-    @memoize_func
     def _plot_other_re_data(self):
         self.format_plot()
         axis = AxisHandler.get_axis(name="other_re_data", ymin=0, ymax=200)
-        axis.plot(
-            self.data[PlotHandler._current_country].re_value_other,
-            label=f"Daily Reproduction Value smoothed for {self.data[PlotHandler._current_country].capitalized_country}",
-        )
+        for i in range(PlotHandler.countries):
+            axis.plot(
+                self.data[i].re_value_other,
+                label=f"Daily Reproduction Value smoothed for {self.data[i].capitalized_country}",
+            )
 
-    @memoize_func
     def show_plot(self, exit_after=False):
-        for i in called:
-            # i(self)
-            PlotHandler._current_country += 1
         handles, labels = AxisHandler.get_legends()
         PlotHandler.plot.legend(handles, labels, loc="best")
         PlotHandler.plot.show()
         if exit_after:
-            sys.exit(0)
+            sys.exit()
 
-    @memoize_func
     def plot_stringency_index(self):
         axis = AxisHandler.get_axis("stringency_index", ymin=0, ymax=100)
-        axis.plot(
-            self.data[PlotHandler._current_country].policies_for_country.StringencyIndex.to_list(),
-            label="Stringency Index",
-        )
+        for i in range(PlotHandler.countries):
+            axis.plot(
+                self.data[i].policies_for_country.StringencyIndex.to_list(),
+                label=f"Stringency Index for {self.data[i].capitalized_country}",
+            )
 
-    @memoize_func
-    def plot_traffic_data(self):
+    def plot_traffic_data(self, detailed=False):
         self.format_plot()
         axis = AxisHandler.get_axis(name="traffic_data", ymin=0, ymax=200)
-        PlotHandler.plot.xticks(
-            size=10,
-            rotation=90,
-            ticks=[i * 25 for i in range(int(len(self.data[PlotHandler._current_country].dates_owid) / 2) % 100)],
-        )
         logger.debug("%s", "Plotting traffic data")
 
-        for index, data_y in enumerate(self.data[PlotHandler._current_country].datasets_as_xy):
-            data_y = interp_nans(data_y)
-            match index:
-                case 0:
-                    self._plot_traffic_data(
-                        axis,
-                        self.data[PlotHandler._current_country].data_x,
-                        moving_average(data_y),
-                        color="#FE9402",
-                        label="Driving (%)",
-                    )
-                case 1:
-                    self._plot_traffic_data(
-                        axis,
-                        self.data[PlotHandler._current_country].data_x,
-                        moving_average(data_y),
-                        color="#FE2D55",
-                        label="Transit (%)",
-                    )
-                case 2:
-                    self._plot_traffic_data(
-                        axis,
-                        self.data[PlotHandler._current_country].data_x,
-                        moving_average(data_y),
-                        color="#AF51DE",
-                        label="Walking (%)",
-                    )
-                case _:
-                    self._plot_traffic_data(
-                        axis,
-                        self.data[PlotHandler._current_country].data_x,
-                        moving_average(data_y),
-                        color="black",
-                        label="unknown datapoint",
-                    )
-        axis.set_ylabel(
-            " Increase of traffic routing requests in %, baseline at 100", size=20
-        )
-        axis.plot(
-            self.data[PlotHandler._current_country].data_x,
-            interp_nans(self.data[PlotHandler._current_country].avg_traffic_data),
-            color="green",
-            label="Average mobility data",
-        )
+        for i in range(PlotHandler.countries):
+            if detailed:
+                for index, data_y in enumerate(self.data[i].datasets_as_xy):
+                    data_y = interp_nans(data_y)
+                    colors = [
+                        ColorHandler.get_color(
+                            f"{i}{index}{self.data[i].capitalized_country}"
+                        )
+                        for _ in range(3)
+                    ]
+                    match index:
+                        case 0:
+                            self._plot_traffic_data(
+                                axis,
+                                self.data[i].data_x,
+                                moving_average(data_y),
+                                color=colors[0],
+                                label=f"Driving (%) [{self.data[i].capitalized_country}]",
+                            )
+                        case 1:
+                            self._plot_traffic_data(
+                                axis,
+                                self.data[i].data_x,
+                                moving_average(data_y),
+                                color=colors[1],
+                                label=f"Transit (%) [{self.data[i].capitalized_country}]",
+                            )
+                        case 2:
+                            self._plot_traffic_data(
+                                axis,
+                                self.data[i].data_x,
+                                moving_average(data_y),
+                                color=colors[2],
+                                label=f"Walking (%) [{self.data[i].capitalized_country}]",
+                            )
+                        case _:
+                            self._plot_traffic_data(
+                                axis,
+                                self.data[i].data_x,
+                                moving_average(data_y),
+                                color="black",
+                                label="unknown datapoint",
+                            )
+            axis.set_ylabel(
+                " Increase of traffic routing requests in %, baseline at 100", size=20
+            )
+            axis.plot(
+                self.data[i].data_x,
+                interp_nans(self.data[i].avg_traffic_data),
+                color=ColorHandler.get_color(
+                    f"mob_data_avg_{self.data[i].capitalized_country}"
+                ),
+                label=f"Average mobility data [{self.data[i].capitalized_country}]",
+            )
 
-    @memoize_func
     def _plot_traffic_data(self, axis, x, y, **kwargs):
         axis.plot(x, moving_average(y), alpha=0.5, **kwargs)
 
-    @memoize_func
     def plot_lockdown_data(self):
         self.format_plot()
         logger.debug("%s", "Plotting lockdown data")
         axis = AxisHandler.get_axis(name="lockdown_data")
         axis.set_yticks([])  # this needs no ticks
         axis.plot(
-            self.data[PlotHandler._current_country].dates_owid, [0 for _ in range(len(self.data[PlotHandler._current_country].dates_owid))], alpha=0
+            self.data[PlotHandler._current_country].dates_owid,
+            [0 for _ in range(len(self.data[PlotHandler._current_country].dates_owid))],
+            alpha=0,
         )
         if self.data[PlotHandler._current_country].country.lower() == "switzerland":
             ausweitungen = []
@@ -420,11 +430,25 @@ class PlotHandler:
             dates = []
             ind = 0
             for date in self.data[PlotHandler._current_country].dates_as_str:
-                if str(date) in list(self.data[PlotHandler._current_country].ch_lockdown_data.Datum):
-                    i = list(self.data[PlotHandler._current_country].ch_lockdown_data.Datum).index(date)
-                    if self.data[PlotHandler._current_country].ch_lockdown_data.Kategorisierung[ind] == "Ausweitung":
+                if str(date) in list(
+                    self.data[PlotHandler._current_country].ch_lockdown_data.Datum
+                ):
+                    i = list(
+                        self.data[PlotHandler._current_country].ch_lockdown_data.Datum
+                    ).index(date)
+                    if (
+                        self.data[
+                            PlotHandler._current_country
+                        ].ch_lockdown_data.Kategorisierung[ind]
+                        == "Ausweitung"
+                    ):
                         ausweitungen.append(date)
-                    elif self.data[PlotHandler._current_country].ch_lockdown_data.Kategorisierung[ind] == "Lockerung":
+                    elif (
+                        self.data[
+                            PlotHandler._current_country
+                        ].ch_lockdown_data.Kategorisierung[ind]
+                        == "Lockerung"
+                    ):
                         lockerungen.append(date)
                     dates.append(date)
                     ind += 1
@@ -443,7 +467,9 @@ class PlotHandler:
                 linestyles="dashed",
             )
             for i, x in enumerate(dates):
-                t = self.data[PlotHandler._current_country].ch_lockdown_data.Beschreibung.to_list()[i]
+                t = self.data[
+                    PlotHandler._current_country
+                ].ch_lockdown_data.Beschreibung.to_list()[i]
                 plt.text(
                     x,
                     max(self.data[PlotHandler._current_country].cases_for_country),
@@ -452,11 +478,16 @@ class PlotHandler:
                     verticalalignment="top",
                 )
 
-    @memoize_func
     def log_pearson_constant(self):
         # Calculate pearson const.
-        n_traffic_data = normalize(moving_average(self.data[PlotHandler._current_country].avg_traffic_data, 50))
-        n_daily_incidence = normalize(moving_average(self.data[PlotHandler._current_country].cases_for_country, 50))
+        n_traffic_data = normalize(
+            moving_average(self.data[PlotHandler._current_country].avg_traffic_data, 50)
+        )
+        n_daily_incidence = normalize(
+            moving_average(
+                self.data[PlotHandler._current_country].cases_for_country, 50
+            )
+        )
         logger.debug(
             "%s", f"Pearson Constant: {pearsonr(n_traffic_data[2:], n_daily_incidence)}"
         )
