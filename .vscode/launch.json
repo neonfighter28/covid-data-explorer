@@ -5,12 +5,20 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Python: Current File",
+            "name": "Python: tests",
+            "type": "python",
+            "request": "launch",
+            "program": "testing.py",
+            "console": "integratedTerminal",
+        },
+        {
+            "name": "Python: Args",
             "type": "python",
             "request": "launch",
             "program": "main.py",
             "console": "integratedTerminal",
             "args": [
+                "plot -cc germany+italy -d total_cases"
             ],
         },
         {

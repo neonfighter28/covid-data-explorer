@@ -2,6 +2,7 @@ USAGE = """
 Usage/Syntax:
 plt | plot
     --country   | -c    [COUNTRY]       | Default: switzerland
+    --cross-country | -cc [country+country+...] | Default None
     NotImplemented --startdate | -sd   [DD.MM.YY]      | Default: None
     NotImplemented --enddate   | -ed   [DD.MM.YY]      | Default: None
     --show      | -s    [bool]          | Default: True Whether to show the plot
@@ -23,7 +24,9 @@ Supported values are currently:
     -   re | reproduction
     -   cs | cases
     -   mb | mobility
+    -   mbd| mobilitydetailed
     -   ld | lockdown
+    -   str| stringency
 
 Unsupported values can still be plotted, although there is no
 shortened version of them, and their names will be the same as in the dataset

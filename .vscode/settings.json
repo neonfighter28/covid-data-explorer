@@ -5,5 +5,10 @@
     "python.linting.enabled": true,
     "python.linting.pycodestyleEnabled": false,
     "discord.enabled": true,
-    "python.linting.flake8Enabled": true
+    "python.linting.flake8Enabled": true,
+    "python.testing.pytestArgs": [
+        "."
+    ],
+    "python.testing.unittestEnabled": false,
+    "python.testing.pytestEnabled": true
 }
