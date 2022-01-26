@@ -70,11 +70,3 @@ OPTIONS_SET_1 = [
     "excess_mortality",
     "excess_mortality_cumulative_per_million"
 ]
-
-TEST_CASES = [
-    # "plot -cc germany+italy -d cs -s False",
-    "plot -d re+cs -s False",
-    "plot -s False -d cs+mb",
-    "plot -c germany -s False -d cs+str+re+mb",
-    "plot -c United-States -s False -d cs+str+re+mb"
-]
