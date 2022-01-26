@@ -106,6 +106,7 @@ class Data:
     """
     This Class handles all data
     """
+
     apple_mobility: pd.DataFrame
     ch_lockdown_data: pd.DataFrame
     ch_re_data: pd.DataFrame
@@ -186,6 +187,7 @@ class Data:
         """
         Subclass swiss data
         """
+
         re_data: pd.DataFrame
         re_mean: list[float]
         re_high: list[float]
@@ -199,6 +201,7 @@ class AxisHandler:
     """
     Class for returning new axes and its legends
     """
+
     _axis = {}
 
     @staticmethod
@@ -441,21 +444,11 @@ class PlotHandler:
             dates = []
             ind = 0
             for date in self.data[PlotHandler._current_country].dates_as_str:
-                if str(date) in list(
-                    Data.ChData.lockdown_data.Datum
-                ):
-                    i = list(
-                        Data.ChData.lockdown_data.Datum
-                    ).index(date)
-                    if (
-                        Data.ChData.lockdown_data.Kategorisierung[ind]
-                        == "Ausweitung"
-                    ):
+                if str(date) in list(Data.ChData.lockdown_data.Datum):
+                    i = list(Data.ChData.lockdown_data.Datum).index(date)
+                    if Data.ChData.lockdown_data.Kategorisierung[ind] == "Ausweitung":
                         ausweitungen.append(date)
-                    elif (
-                        Data.ChData.lockdown_data.Kategorisierung[ind]
-                        == "Lockerung"
-                    ):
+                    elif Data.ChData.lockdown_data.Kategorisierung[ind] == "Lockerung":
                         lockerungen.append(date)
                     dates.append(date)
                     ind += 1
