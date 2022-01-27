@@ -1,3 +1,5 @@
+#!/bin/python
+
 from dataclasses import dataclass
 import json
 import logging
