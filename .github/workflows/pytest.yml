@@ -17,5 +17,4 @@ jobs:
           python -m venv venv/
           mkdir assets/
           python get_data.py
-      - name: Test with pytest
-        run: pytest -vv
+          pytest -vv
