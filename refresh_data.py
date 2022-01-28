@@ -49,7 +49,7 @@ def get_cached_data() -> tuple[pd.DataFrame, ...]:
         owid_data = read_from_file("owid_data")
         policies = read_from_file("policies")
     except FileNotFoundError:
-        get_new_data()
+        apple_mobility, ch_lockdown_data, ch_re_data, owid_data, policies = get_new_data()
         get_cached_data()
     return apple_mobility, ch_lockdown_data, ch_re_data, owid_data, policies
 
