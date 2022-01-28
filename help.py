@@ -10,6 +10,7 @@ plt | plot
 help
     data
     country
+    arbitrary
 ===================================================================================="""
 
 HELP_DATA = """
@@ -27,7 +28,19 @@ Supported values are currently:
     -   mbd| mobilitydetailed
     -   ld | lockdown
     -   str| stringency
+Arbitrary values:
+    > help arbitrary
+"""
 
+HELP_COUNTRY = """
+Usage of the country argument:
+If the country name is split by a whitespace, e.g. United States,
+the whitespace must be replaced by a dash, "-"
+
+e.g. "United States" -> "United-States"
+"""
+
+HELP_ARBITRARY = """
 Unsupported values can still be plotted, although there is no
 shortened version of them, and their names will be the same as in the dataset
 There is also a high chance they will not be displayed correctly
@@ -85,12 +98,4 @@ https://github.com/owid/covid-19-data/tree/master/public/data
 | excess_mortality_cumulative           | excess_mortality                     |
 | excess_mortality_cumulative_per_million                                      |
 --------------------------------------------------------------------------------
-"""
-
-HELP_COUNTRY = """
-Usage of the country argument:
-If the country name is split by a whitespace, e.g. United States,
-the whitespace must be replaced by a dash, "-"
-
-e.g. "United States" -> "United-States"
 """

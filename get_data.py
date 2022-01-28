@@ -34,6 +34,7 @@ class CountryNotFound(CovidPredException):
     """Country wasn't found"""
 
 
+# Cache wrapper for round function rounding results to improve speed
 @cache
 def rround(*args, **kwargs):
     return round(*args, **kwargs)
@@ -160,7 +161,6 @@ class Data:
             Data.owid_data.location == self.capitalized_country
         ]
         self.re_value_other = self.re_value_other.reproduction_rate.to_list()
-        self.re_value_other = [i * 100 for i in self.re_value_other]
 
         self.traffic_data_for_country = self.apple_mobility[
             self.apple_mobility.region == self.capitalized_country
@@ -296,6 +296,7 @@ class PlotHandler:
         for i in range(PlotHandler.countries):
             axis = AxisHandler.get_axis(
                 name="cases",
+                # Avg of top 10 values
                 ymax=average(sorted(self.data[i].cases_for_country, reverse=True)[:10]),
             )
 
@@ -314,41 +315,33 @@ class PlotHandler:
         )
 
     def plot_re_data(self):
-        if self.data[PlotHandler._current_country].country == "switzerland":
-            self._plot_ch_re_data()
-        else:
-            self._plot_other_re_data()
-
-    def _plot_ch_re_data(self):
         self.format_plot()
-        axis = AxisHandler.get_axis(name="ch_re_data", ymin=0, ymax=200)
-        axis.plot(
-            Data.ChData.re_mean,
-            label="Daily Reproduction Value smoothed for Switzerland",
-        )
-        axis.grid(color="cyan", axis="y", alpha=0.5)
-
-        axis.fill_between(
-            Data.ChData.re_dates,
-            Data.ChData.re_low,
-            Data.ChData.re_mean,
-            alpha=0.5,
-        )
-        axis.fill_between(
-            Data.ChData.re_dates,
-            Data.ChData.re_high,
-            Data.ChData.re_mean,
-            alpha=0.5,
-        )
-
-    def _plot_other_re_data(self):
-        self.format_plot()
-        axis = AxisHandler.get_axis(name="other_re_data", ymin=0, ymax=200)
+        axis = AxisHandler.get_axis(name="re_data", ymin=0, ymax=2)
         for i in range(PlotHandler.countries):
-            axis.plot(
-                self.data[i].re_value_other,
-                label=f"Daily Reproduction Value smoothed for {self.data[i].capitalized_country}",
-            )
+            if self.data[i].country == "switzerland":
+                axis.plot(
+                    Data.ChData.re_mean,
+                    label="Daily Reproduction Value smoothed for Switzerland",
+                )
+                axis.grid(color="cyan", axis="y", alpha=0.5)
+
+                axis.fill_between(
+                    Data.ChData.re_dates,
+                    Data.ChData.re_low,
+                    Data.ChData.re_mean,
+                    alpha=0.5,
+                )
+                axis.fill_between(
+                    Data.ChData.re_dates,
+                    Data.ChData.re_high,
+                    Data.ChData.re_mean,
+                    alpha=0.5,
+                )
+            else:
+                axis.plot(
+                    self.data[i].re_value_other,
+                    label=f"Daily Reproduction Value smoothed for {self.data[i].capitalized_country}",
+                )
 
     def show_plot(self, exit_after=False):
         handles, labels = AxisHandler.get_legends()

@@ -4,7 +4,7 @@ from dataclasses import dataclass
 import json
 import logging
 import sys
-from help import HELP_DATA, HELP_COUNTRY, USAGE
+from help import HELP_ARBITRARY, HELP_DATA, HELP_COUNTRY, USAGE
 
 import get_data
 from config import LOG_CONFIG, LOG_LEVEL
@@ -70,7 +70,9 @@ class InputHandler:
                             print(HELP_DATA)
                         case "country":
                             print(HELP_COUNTRY)
-                main(failure=True)
+                        case "arbitrary":
+                            print(HELP_ARBITRARY)
+                main(failure=True, show=False)
 
             case _:
                 raise ValueError(f"Bad command {self.command}")
@@ -171,9 +173,9 @@ class InputHandler:
         # raise InputFailure  # Repeat Input sequence until Ctrl+C is pressed or exit is entered
 
 
-def main(failure=False):
+def main(failure=False, show=True):
     if not sys.argv[1:] or failure:
-        command, args = ret_input()
+        command, args = ret_input(show)
         InputHandler(command, args)
     else:
         stdin = ""
@@ -186,9 +188,10 @@ def main(failure=False):
         InputHandler(command, args)
 
 
-def ret_input() -> str:
+def ret_input(show=True) -> str:
     try:
-        print(USAGE)
+        if show:
+            print(USAGE)
         user_in = input("covid-sets >>>> ")
         if user_in == "exit":
             raise KeyboardInterrupt
