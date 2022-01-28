@@ -16,5 +16,5 @@ jobs:
           pip install -r requirements.txt
           python -m venv venv/
           mkdir assets/
-          python get_data.py
+          python refresh_data.py
           pytest -vv
