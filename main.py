@@ -160,7 +160,7 @@ class InputHandler:
                     ):
                         logger.warning("%s", f"Data not found for {argument}")
 
-        if not self.connection.ax_handler._axis:
+        if not self.connection.ax_handler._axes:
             raise InputFailure(f"Bad -d argument {argument}")
         if self.show_plot:
             logger.debug("%s", "Showing plot...")

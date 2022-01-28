@@ -40,16 +40,6 @@ def rround(*args, **kwargs):
     return round(*args, **kwargs)
 
 
-def flatten(arr):
-    # helper method for flattening the data,
-    # so it can be displayed on a bar graph
-    return [i[0] for i in arr.tolist()]
-
-
-def flatten_list(arr):
-    return [item for sublist in arr for item in sublist]
-
-
 def average(num):
     # sum of an array divided by its length
     return sum(num) / len(num)
@@ -57,10 +47,6 @@ def average(num):
 
 def normalize(data):
     return [i / max(data) for i in data]
-
-
-def daily_increase(data):
-    return [data if i == 0 else data[i] - data[i - 1] for i in range(len(data))]
 
 
 def moving_average(data, window_size=7):
@@ -108,11 +94,38 @@ class Data:
     This Class handles all data
     """
 
-    apple_mobility: pd.DataFrame
-    ch_lockdown_data: pd.DataFrame
-    ch_re_data: pd.DataFrame
-    owid_data: pd.DataFrame
-    policies: pd.DataFrame
+    class ChData:
+        """
+        Subclass for swiss data
+        """
+
+        re_data: pd.DataFrame
+        re_mean: list[float]
+        re_high: list[float]
+        re_low: list[float]
+
+        re_dates: list[str]
+        lockdown_data: pd.DataFrame
+
+    (
+        apple_mobility,
+        ch_lockdown_data,
+        ch_re_data,
+        owid_data,
+        policies,
+    ) = refresh_data.get_cached_data()
+
+    ChData.lockdown_data = ch_lockdown_data[
+        ch_lockdown_data.Kategorisierung != "Ferien"
+    ]
+
+    ch_re_data = ch_re_data.loc[ch_re_data["geoRegion"] == "CH"]
+    ChData.re_dates = ch_re_data.date.to_list()
+    # self.re_date = self.data.ch_re_data.date.to_list()
+
+    ChData.re_mean = ch_re_data.median_R_mean.to_list()
+    ChData.re_high = ch_re_data.median_R_highHPD.to_list()
+    ChData.re_low = ch_re_data.median_R_lowHPD.to_list()
 
     def __init__(self, country="switzerland", use_cache="True") -> None:
         if "-" in country:
@@ -120,14 +133,6 @@ class Data:
         self.country = country
         self.cache = use_cache
         logger.debug("%s", f"{self.country = }, {self.cache = }")
-
-        (
-            Data.apple_mobility,
-            Data.ch_lockdown_data,
-            Data.ch_re_data,
-            Data.owid_data,
-            Data.policies,
-        ) = refresh_data.get_cached_data()
 
         self.capitalized_country = self.country[:1].upper() + self.country[1:]
         logger.debug("%s", f"{self.capitalized_country = }")
@@ -137,9 +142,6 @@ class Data:
         self.policies_for_country = Data.policies[
             Data.policies.CountryName == self.capitalized_country
         ]
-        Data.ChData.lockdown_data = Data.ch_lockdown_data[
-            Data.ch_lockdown_data.Kategorisierung != "Ferien"
-        ]
 
         self.owid_data_for_country = Data.owid_data[
             Data.owid_data.location == self.capitalized_country
@@ -148,14 +150,6 @@ class Data:
             0
         ).to_list()
         self.dates_owid = self.owid_data_for_country.date.to_list()
-
-        Data.ch_re_data = Data.ch_re_data.loc[Data.ch_re_data["geoRegion"] == "CH"]
-        Data.ChData.re_dates = Data.ch_re_data.date.to_list()
-        # self.re_date = self.data.ch_re_data.date.to_list()
-
-        Data.ChData.re_mean = Data.ch_re_data.median_R_mean.to_list()
-        Data.ChData.re_high = Data.ch_re_data.median_R_highHPD.to_list()
-        Data.ChData.re_low = Data.ch_re_data.median_R_lowHPD.to_list()
 
         self.re_value_other = Data.owid_data[
             Data.owid_data.location == self.capitalized_country
@@ -183,26 +177,13 @@ class Data:
             [sum(e) / len(e) for e in zip(*self.datasets_as_xy)]
         )
 
-    class ChData:
-        """
-        Subclass swiss data
-        """
-
-        re_data: pd.DataFrame
-        re_mean: list[float]
-        re_high: list[float]
-        re_low: list[float]
-
-        re_dates: list[str]
-        lockdown_data: pd.DataFrame
-
 
 class AxisHandler:
     """
     Class for returning new axes and its legends
     """
 
-    _axis = {}
+    _axes = {}
 
     @staticmethod
     def get_axis(name: str = None, ymin=None, ymax=None) -> plt.Axes:
@@ -211,22 +192,22 @@ class AxisHandler:
             name = uuid.uuid4()
         logger.debug("%s", f"Getting axis for {name = }")
         try:
-            return AxisHandler._axis[name]
+            return AxisHandler._axes[name]
         except KeyError:
-            if not AxisHandler._axis:
+            if not AxisHandler._axes:
                 axis = PlotHandler.plot.gca()
-                AxisHandler._axis[name] = axis
+                AxisHandler._axes[name] = axis
                 return axis
 
-            new_ax = list(AxisHandler._axis.values())[-1].twinx()
+            new_ax = list(AxisHandler._axes.values())[-1].twinx()
             new_ax.set_ylim(ymin, ymax)
-            AxisHandler._axis[name] = new_ax
+            AxisHandler._axes[name] = new_ax
             return new_ax
 
     @staticmethod
     def get_legends() -> tuple[list[matplotlib.lines.Line2D], list[str]]:
         handles, labels = [], []
-        for axis in AxisHandler._axis.values():
+        for axis in AxisHandler._axes.values():
             for handle, label in zip(*axis.get_legend_handles_labels()):
                 handles.append(handle)
                 labels.append(label)
