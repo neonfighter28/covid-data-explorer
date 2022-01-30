@@ -35,6 +35,7 @@ class CountryNotFound(CovidPredException):
 
 
 # Cache wrapper for round function rounding results to improve speed
+# at the cost of memory
 @cache
 def rround(*args, **kwargs):
     return round(*args, **kwargs)
@@ -43,10 +44,6 @@ def rround(*args, **kwargs):
 def average(num):
     # sum of an array divided by its length
     return sum(num) / len(num)
-
-
-def normalize(data):
-    return [i / max(data) for i in data]
 
 
 def moving_average(data, window_size=7):
@@ -121,7 +118,6 @@ class Data:
 
     ch_re_data = ch_re_data.loc[ch_re_data["geoRegion"] == "CH"]
     ChData.re_dates = ch_re_data.date.to_list()
-    # self.re_date = self.data.ch_re_data.date.to_list()
 
     ChData.re_mean = ch_re_data.median_R_mean.to_list()
     ChData.re_high = ch_re_data.median_R_highHPD.to_list()
@@ -450,13 +446,13 @@ class PlotHandler:
 
     def log_pearson_constant(self):
         # Calculate pearson const.
-        n_traffic_data = normalize(
-            moving_average(self.data[PlotHandler._current_country].avg_traffic_data, 50)
+        # TODO
+        n_traffic_data = moving_average(
+            self.data[PlotHandler._current_country].avg_traffic_data, 50
         )
-        n_daily_incidence = normalize(
-            moving_average(
-                self.data[PlotHandler._current_country].cases_for_country, 50
-            )
+
+        n_daily_incidence = moving_average(
+            self.data[PlotHandler._current_country].cases_for_country, 50
         )
         logger.debug(
             "%s", f"Pearson Constant: {pearsonr(n_traffic_data[2:], n_daily_incidence)}"
