@@ -40,6 +40,15 @@ the whitespace must be replaced by a dash, "-"
 e.g. "United States" -> "United-States"
 """
 
+HELP_UNKNOWN = """
+Unknown help option
+
+Available Options:
+- arbitrary
+- country
+- data
+"""
+
 HELP_ARBITRARY = """
 Unsupported values can still be plotted, although there is no
 shortened version of them, and their names will be the same as in the dataset

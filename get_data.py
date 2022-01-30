@@ -224,11 +224,9 @@ class PlotHandler:
     countries: int
 
     def __init__(self, country=[]):
-        self.data = []
+        self.data = [Data(country=c) for c in country]
 
         PlotHandler.countries = len(country)
-        for c in country:
-            self.data.append(Data(country=c))
 
         PlotHandler.plot = plt
 
@@ -262,8 +260,6 @@ class PlotHandler:
 
         axis = AxisHandler.get_axis(f"Arbitrary: {value}")
         for i in range(PlotHandler.countries):
-            print(i)
-            print(self.data[i])
             axis.plot(
                 self.data[i].dates_owid,
                 self.data[i].owid_data_for_country[value].to_list(),

@@ -4,7 +4,7 @@ from dataclasses import dataclass
 import json
 import logging
 import sys
-from help import HELP_ARBITRARY, HELP_DATA, HELP_COUNTRY, USAGE
+from help import HELP_ARBITRARY, HELP_DATA, HELP_COUNTRY, HELP_UNKNOWN, USAGE
 
 import get_data
 from config import LOG_CONFIG, LOG_LEVEL
@@ -72,6 +72,8 @@ class InputHandler:
                             print(HELP_COUNTRY)
                         case "arbitrary":
                             print(HELP_ARBITRARY)
+                        case _:
+                            print(HELP_UNKNOWN)
                 main(failure=True, show=False)
 
             case _:
@@ -93,7 +95,7 @@ class InputHandler:
         self.show_plot = True
         data_arguments = None
 
-        self.is_crosscountry = False
+        self.is_crosscountry: bool = False
         self.countries: list = []
 
         for argument in self.arguments:
