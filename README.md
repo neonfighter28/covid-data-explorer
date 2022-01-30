@@ -1,5 +1,7 @@
 # Covid Data Explorer
 
+[![Project Tests](https://github.com/neonfighter28/covid-data-explorer/actions/workflows/pytest.yml/badge.svg)](https://github.com/neonfighter28/covid-data-explorer/actions/workflows/pytest.yml)
+
 ## 1. Idea
 
 ### Product
