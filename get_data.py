@@ -123,12 +123,11 @@ class Data:
     ChData.re_high = ch_re_data.median_R_highHPD.to_list()
     ChData.re_low = ch_re_data.median_R_lowHPD.to_list()
 
-    def __init__(self, country="switzerland", use_cache="True") -> None:
+    def __init__(self, country: str = "switzerland") -> None:
         if "-" in country:
             country = country.replace("-", " ")  # See HELP_COUNTRY
         self.country = country
-        self.cache = use_cache
-        logger.debug("%s", f"{self.country = }, {self.cache = }")
+        logger.debug("%s", f"{self.country = }")
 
         self.capitalized_country = self.country[:1].upper() + self.country[1:]
         logger.debug("%s", f"{self.capitalized_country = }")

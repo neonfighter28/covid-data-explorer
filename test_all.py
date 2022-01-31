@@ -2,6 +2,8 @@
 
 import os
 import subprocess
+import get_data
+import main
 
 SHOW = " -s False"
 
@@ -11,10 +13,10 @@ elif os.name == "posix":
     PYTHON_PATH = f"{os.getcwd()}/venv/bin/python"
 
 
-def run(BASE_TEST, CASES):
+def run(BASE_TEST, CASES, EOL=""):
     for test in CASES:
         print(f"echo {BASE_TEST+SHOW} {test} | {PYTHON_PATH} main.py")
-        s = subprocess.run([PYTHON_PATH, "main.py", f"{BASE_TEST+SHOW} {test}"])
+        s = subprocess.run([PYTHON_PATH, "main.py", f"{BASE_TEST+SHOW} {test} {EOL}"])
         assert s.returncode == 0
 
 
@@ -52,6 +54,7 @@ def test_multiple_countries():
     run(BASE_TEST, CASES)
 
 
+
 def test_arbitrary():
     BASE_TEST = "plot -c germany"
     CASES = [
@@ -72,3 +75,14 @@ def test_sep_names():
         "-d re+cs+mb+str"
     ]
     run(BASE_TEST, CASES)
+
+
+# def test_bad_inputs():
+#     BASE_TEST = "plot "
+#     EOL = "\nplot -d cs"
+#     CASES = [
+#         "ld+cs",  # omit -d
+#         "United+States",  # bad countries
+#         "-d switerland"  # spelling mistake
+#     ]
+#     run(BASE_TEST, CASES, EOL)
