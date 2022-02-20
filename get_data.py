@@ -61,7 +61,7 @@ def interp_nans(x: list[float], left=None, right=None, period=None) -> list[floa
         np.interp(
             x=list(range(len(x))),
             xp=[i for i, yi in enumerate(x) if np.isfinite(yi)],
-            fp=[yi for i, yi in enumerate(x) if np.isfinite(yi)],
+            fp=[yi for yi in x if np.isfinite(yi)],
             left=left,
             right=right,
             period=period,
@@ -215,7 +215,7 @@ class PlotHandler:
     """
 
     plot = None
-    _current_country = 0
+    _current = 0
     countries: int
 
     def __init__(self, country=[]):
@@ -241,8 +241,7 @@ class PlotHandler:
                 ticks=[
                     i * 25
                     for i in range(
-                        int(len(self.data[PlotHandler._current_country].dates_owid))
-                        % 100
+                        int(len(self.data[PlotHandler._current].dates_owid)) % 100
                     )
                 ],
             )
@@ -351,7 +350,7 @@ class PlotHandler:
                                 axis,
                                 self.data[i].data_x,
                                 moving_average(data_y),
-                                color=colors[0],
+                                color=colors[index],
                                 label=f"Driving (%) [{self.data[i].capitalized_country}]",
                             )
                         case 1:
@@ -359,7 +358,7 @@ class PlotHandler:
                                 axis,
                                 self.data[i].data_x,
                                 moving_average(data_y),
-                                color=colors[1],
+                                color=colors[index],
                                 label=f"Transit (%) [{self.data[i].capitalized_country}]",
                             )
                         case 2:
@@ -367,7 +366,7 @@ class PlotHandler:
                                 axis,
                                 self.data[i].data_x,
                                 moving_average(data_y),
-                                color=colors[2],
+                                color=colors[index],
                                 label=f"Walking (%) [{self.data[i].capitalized_country}]",
                             )
                         case _:
@@ -399,16 +398,16 @@ class PlotHandler:
         axis = AxisHandler.get_axis(name="lockdown_data")
         axis.set_yticks([])  # this needs no ticks
         axis.plot(
-            self.data[PlotHandler._current_country].dates_owid,
-            [0 for _ in range(len(self.data[PlotHandler._current_country].dates_owid))],
+            self.data[PlotHandler._current].dates_owid,
+            [0 for _ in range(len(self.data[PlotHandler._current].dates_owid))],
             alpha=0,
         )
-        if self.data[PlotHandler._current_country].country.lower() == "switzerland":
+        if self.data[PlotHandler._current].country.lower() == "switzerland":
             ausweitungen = []
             lockerungen = []
             dates = []
             ind = 0
-            for date in self.data[PlotHandler._current_country].dates_as_str:
+            for date in self.data[PlotHandler._current].dates_as_str:
                 if str(date) in list(Data.ChData.lockdown_data.Datum):
                     i = list(Data.ChData.lockdown_data.Datum).index(date)
                     if Data.ChData.lockdown_data.Kategorisierung[ind] == "Ausweitung":
@@ -420,38 +419,40 @@ class PlotHandler:
             PlotHandler.plot.vlines(
                 x=ausweitungen,
                 ymin=0,
-                ymax=max(self.data[PlotHandler._current_country].cases_for_country),
+                ymax=max(self.data[PlotHandler._current].cases_for_country),
                 color="red",
                 linestyles="dashed",
             )
             PlotHandler.plot.vlines(
                 x=lockerungen,
                 ymin=0,
-                ymax=max(self.data[PlotHandler._current_country].cases_for_country),
+                ymax=max(self.data[PlotHandler._current].cases_for_country),
                 color="green",
                 linestyles="dashed",
             )
             for i, x in enumerate(dates):
                 t = self.data[
-                    PlotHandler._current_country
+                    PlotHandler._current
                 ].ch_lockdown_data.Beschreibung.to_list()[i]
                 plt.text(
                     x,
-                    max(self.data[PlotHandler._current_country].cases_for_country),
+                    max(self.data[PlotHandler._current].cases_for_country),
                     t,
                     rotation=90,
                     verticalalignment="top",
                 )
+            else:
+                logger.warn("No lockdown data available for this country")
 
     def log_pearson_constant(self):
         # Calculate pearson const.
         # TODO
         n_traffic_data = moving_average(
-            self.data[PlotHandler._current_country].avg_traffic_data, 50
+            self.data[PlotHandler._current].avg_traffic_data, 50
         )
 
         n_daily_incidence = moving_average(
-            self.data[PlotHandler._current_country].cases_for_country, 50
+            self.data[PlotHandler._current].cases_for_country, 50
         )
         logger.debug(
             "%s", f"Pearson Constant: {pearsonr(n_traffic_data[2:], n_daily_incidence)}"
