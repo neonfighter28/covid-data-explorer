@@ -26,7 +26,7 @@ def split_input(input_string) -> tuple[str, list[str]]:
     try:
         command = input_string.split()[0]
     except IndexError:
-        print("Handling IndexError")
+        print("Handling IndexError, no input was provided")
         main(failure=True)
     args = input_string.split()[1:]
     logger.debug("%s", f"COMMAND {command}")
@@ -38,7 +38,7 @@ def split_input(input_string) -> tuple[str, list[str]]:
     return command, args
 
 
-def unpack_args(args) -> Argument(str, str):
+def unpack_args(args: list) -> Argument(str, str):
     """Takes a list of arguments and returns a list of tuples"""
     try:
         unpacked_args = [
@@ -170,10 +170,6 @@ class InputHandler:
         else:
             logger.debug("%s", "Not showing plot")
 
-        del self.connection
-
-        # raise InputFailure  # Repeat Input sequence until Ctrl+C is pressed or exit is entered
-
 
 def main(failure=False, show=True):
     if not sys.argv[1:] or failure:
@@ -204,14 +200,6 @@ def ret_input(show=True) -> str:
     return command, args
 
 
-def rec_until_keyboard_interrupt():
-    # InputFailure is raised if any Input is malformed/arguments do not exist
-    try:
-        main()
-    except InputFailure:
-        rec_until_keyboard_interrupt()
-
-
 logger = logging.getLogger(name="__main__")
 if __name__ == "__main__":
     logger.setLevel(level=LOG_LEVEL)
@@ -220,4 +208,9 @@ if __name__ == "__main__":
     fh.setFormatter(fh_formatter)
     logger.addHandler(fh)
 
-    rec_until_keyboard_interrupt()
+    while True:
+        try:
+            main()
+            exit()
+        except InputFailure:
+            pass

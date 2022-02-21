@@ -2,25 +2,29 @@
 
 [![Project Tests](https://github.com/neonfighter28/covid-data-explorer/actions/workflows/pytest.yml/badge.svg)](https://github.com/neonfighter28/covid-data-explorer/actions/workflows/pytest.yml)
 
+## Usage
+
+    python main.py [args]
+
 ## 1. Idea
 
 ### Product
 
-    TUI, handling the display of Covid-Data of graphs of multiple datasets
+>    TUI, handling the display of Covid-Data of graphs of multiple datasets
 
 ### Layer-Based Design
 
 #### Layer 1
 
-    User Input/Parsing and displaying of graphs
+>    User Input/Parsing and displaying of graphs
 
 #### Layer 2
 
-    Data structures and preparing for output
+>    Data structures and preparing for output
 
 #### Layer 3
 
-    Data layer, interfacing with web/cache
+>    Data layer, interfacing with web/cache
 
 ## 2. Technologies used
 
@@ -39,23 +43,23 @@
 
 ## Data Sources
 
-Lockdown measures by statistikZH
+>Lockdown measures by statistikZH
 
     https://raw.githubusercontent.com/statistikZH/covid19zeitmarker/master/covid19zeitmarker.csv
 
-Global measures by Oxford
+>Global measures by Oxford
 
     https://raw.githubusercontent.com/OxCGRT/covid-policy-tracker/master/data/OxCGRT_latest.csv
 
-Global Covid data by Our World In Data
+>Global Covid data by Our World In Data
 
     https://covid.ourworldindata.org/data/owid-covid-data.csv
 
-Global mobility data by apple
+>Global mobility data by apple
 
     https://covid19-static.cdn-apple.com/
 
-Reproduction values, provided by Bundesamt für Gesundheit
+>Reproduction values, provided by Bundesamt für Gesundheit
 
     https://www.covid19.admin.ch/api/data/documentation/models/sources-definitions-redailyincomingdata.md
 
