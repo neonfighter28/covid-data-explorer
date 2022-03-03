@@ -6,7 +6,6 @@ from datetime import datetime, timedelta
 import logging
 import random
 import sys
-import time
 import uuid
 from functools import cache
 
@@ -21,7 +20,6 @@ from config import OPTIONS_SET_1
 
 plt.style.use("seaborn-poster")
 random.seed(19)  # 19 for Covid-19 :P
-timestart = time.perf_counter()
 
 logger = logging.getLogger("__main__")
 
@@ -71,14 +69,23 @@ def interp_nans(x: list[float], left=None, right=None, period=None) -> list[floa
     return [rround(i, 1) for i in lst]
 
 
+FUNCS = []
+
+
+def cache_funcs(func):
+    def inner():
+        FUNCS.append(func)
+    return inner
+
+
 class ColorHandler:
     cmap_strong = matplotlib.cm.get_cmap("Set1")
     cmap_light = matplotlib.cm.get_cmap("Set3")
     colors = {}
-    c_value = 0
 
     @staticmethod
-    def get_color(name="None", strong: bool = True):
+    def get_color(name: str = "None", strong: bool = True):
+        logger.debug("%s", f"{name = }, {strong}")
         try:
             return ColorHandler.colors[name]
         except KeyError:
@@ -88,9 +95,8 @@ class ColorHandler:
             else:
                 color = ColorHandler.cmap_light(rand)
 
-            # The following random number is not used in any security context
-            ColorHandler.c_value += random.randint(0, 4) * 15  # nosec
             ColorHandler.colors[name] = color
+            logger.debug("%s", f"Creating new color {color}")
             return color
 
 
@@ -189,7 +195,7 @@ class AxisHandler:
     _axes = {}
 
     @staticmethod
-    def get_axis(name: str = None, ymin=None, ymax=None) -> plt.Axes:
+    def get_axis(name: str = None, ymin: int = None, ymax: int = None) -> plt.Axes:
         if not name:
             logger.warn("%s", "No name supplied to get_axis, using UUID...")
             name = uuid.uuid4()
@@ -197,6 +203,7 @@ class AxisHandler:
         try:
             return AxisHandler._axes[name]
         except KeyError:
+            # If no axis exists yet
             if not AxisHandler._axes:
                 axis = PlotHandler.plot.gca()
                 AxisHandler._axes[name] = axis
@@ -212,8 +219,8 @@ class AxisHandler:
         handles, labels = [], []
         for axis in AxisHandler._axes.values():
             for handle, label in zip(*axis.get_legend_handles_labels()):
-                handles.append(handle)
-                labels.append(label)
+                handles += [handle]
+                labels += [label]
         return handles, labels
 
 
@@ -249,7 +256,7 @@ class PlotHandler:
             ],
         )
 
-    def plot_arbitrary_values(self, value) -> NotImplemented:
+    def plot_arbitrary_values(self, value: str) -> NotImplemented:
         if value not in OPTIONS_SET_1:  # Value needs to be a datarow of the dataset
             return NotImplemented
 
@@ -270,12 +277,11 @@ class PlotHandler:
                 # Avg of top 10 values
                 ymax=average(sorted(self.data[i].cases_for_country, reverse=True)[:10]),
             )
-
             axis.plot(
                 self.data[i].dates_owid,
                 moving_average(self.data[i].cases_for_country),
                 color=ColorHandler.get_color(
-                    f"cases_{self.data[i].capitalized_country}"
+                    f"cases_{self.data[i].capitalized_country}{i}"
                 ),
                 label=f"Incidence {self.data[i].capitalized_country}, moving average",
             )
@@ -293,7 +299,7 @@ class PlotHandler:
                     Data.ChData.re_mean,
                     label="Daily Reproduction Value smoothed for Switzerland",
                 )
-                axis.grid(color="cyan", axis="y", alpha=0.5)
+                axis.grid(color="grey", axis="y", alpha=0.5)
 
                 axis.fill_between(
                     Data.ChData.re_dates,
@@ -314,6 +320,8 @@ class PlotHandler:
                 )
 
     def show_plot(self, exit_after=False):
+        for func in FUNCS:
+            func()
         handles, labels = AxisHandler.get_legends()
         PlotHandler.plot.legend(handles, labels, loc="best")
         PlotHandler.plot.show()
