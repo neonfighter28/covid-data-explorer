@@ -72,16 +72,24 @@ def interp_nans(x: list[float], left=None, right=None, period=None) -> list[floa
 
 
 class ColorHandler:
-    cmap = matplotlib.cm.get_cmap("Spectral")
+    cmap_strong = matplotlib.cm.get_cmap("Set1")
+    cmap_light = matplotlib.cm.get_cmap("Set3")
     colors = {}
+    c_value = 0
 
     @staticmethod
-    def get_color(name="None"):
+    def get_color(name="None", strong: bool = True):
         try:
             return ColorHandler.colors[name]
         except KeyError:
+            rand = random.randint(0, 100)
+            if strong:
+                color = ColorHandler.cmap_strong(rand)
+            else:
+                color = ColorHandler.cmap_light(rand)
+
             # The following random number is not used in any security context
-            color = ColorHandler.cmap(random.random())  # nosec
+            ColorHandler.c_value += random.randint(0, 4) * 15  # nosec
             ColorHandler.colors[name] = color
             return color
 
@@ -229,26 +237,19 @@ class PlotHandler:
 
         self.formatted = False
 
-    def format_plot(self):
-        """
-        Format the plot as a matplotlib plot
-        """
-        if not self.formatted:
-            PlotHandler.plot.xlabel("Days Since 1/22/2020", size=15)
-            PlotHandler.plot.xticks(
-                size=10,
-                rotation=90,
-                ticks=[
-                    i * 25
-                    for i in range(
-                        int(len(self.data[PlotHandler._current].dates_owid)) % 100
-                    )
-                ],
-            )
-            self.formatted = True
+        PlotHandler.plot.xlabel("Days Since 1/22/2020", size=15)
+        PlotHandler.plot.xticks(
+            size=10,
+            rotation=90,
+            ticks=[
+                i * 50
+                for i in range(
+                    int(len(self.data[PlotHandler._current].dates_owid)) % 100
+                )
+            ],
+        )
 
     def plot_arbitrary_values(self, value) -> NotImplemented:
-        self.format_plot()
         if value not in OPTIONS_SET_1:  # Value needs to be a datarow of the dataset
             return NotImplemented
 
@@ -263,7 +264,6 @@ class PlotHandler:
         return None
 
     def plot_cases(self):
-        self.format_plot()
         for i in range(PlotHandler.countries):
             axis = AxisHandler.get_axis(
                 name="cases",
@@ -286,7 +286,6 @@ class PlotHandler:
         )
 
     def plot_re_data(self):
-        self.format_plot()
         axis = AxisHandler.get_axis(name="re_data", ymin=0, ymax=2)
         for i in range(PlotHandler.countries):
             if self.data[i].country == "switzerland":
@@ -330,7 +329,6 @@ class PlotHandler:
             )
 
     def plot_traffic_data(self, detailed=False):
-        self.format_plot()
         axis = AxisHandler.get_axis(name="traffic_data", ymin=0, ymax=200)
         logger.debug("%s", "Plotting traffic data")
 
@@ -340,7 +338,7 @@ class PlotHandler:
                     data_y = interp_nans(data_y)
                     colors = [
                         ColorHandler.get_color(
-                            f"{i}{index}{self.data[i].capitalized_country}"
+                            f"{i}{index}{self.data[i].capitalized_country}", strong=False
                         )
                         for _ in range(3)
                     ]
@@ -393,7 +391,6 @@ class PlotHandler:
         axis.plot(x, moving_average(y), alpha=0.5, **kwargs)
 
     def plot_lockdown_data(self):
-        self.format_plot()
         logger.debug("%s", "Plotting lockdown data")
         axis = AxisHandler.get_axis(name="lockdown_data")
         axis.set_yticks([])  # this needs no ticks
