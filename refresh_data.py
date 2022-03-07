@@ -1,8 +1,28 @@
 import logging
+
 import pandas as pd
 import requests
-import pickle  # nosec
+import tqdm
+
 from config import LOG_CONFIG, LOG_LEVEL
+
+
+def download_file(url, filename="None"):
+    try:
+        with open(filename, "wb") as fp, requests.get(url, stream=True) as r:
+            chunk_size = 1024
+            for chunk in tqdm.tqdm(
+                r.iter_content(chunk_size=chunk_size),
+                total=int(int(r.headers["Content-Length"]) / chunk_size),
+                unit="KB",
+                desc=filename,
+                leave=True,
+            ):
+                fp.write(chunk)
+    except KeyError:
+        with open(filename, "wb") as fp, requests.get(url, stream=True) as req:
+            for chunk in req.iter_content(chunk_size=chunk_size):
+                fp.write(chunk)
 
 
 def get_new_data() -> tuple[pd.DataFrame, ...]:
@@ -17,39 +37,35 @@ def get_new_data() -> tuple[pd.DataFrame, ...]:
     logger.info("%s", "------   Pulling data...   ------")
 
     logger.debug("%s", "Pulling mobility data...")
-    apple_mobility = pd.read_csv(url_apple_mobility_data)
+    download_file(url_apple_mobility_data, filename="apple_mobility.csv")
     logger.info("%s", "Pulling lockdown data...")
-    ch_lockdown_data = pd.read_csv(url_ch_cov_markers)
+    download_file(url_ch_cov_markers, filename="assets/ch_lockdown_data.csv")
     logger.debug("%s", "Pulling R_e data")
-    ch_re_data = pd.read_csv(url_ch_re_data)
+    download_file(url_ch_re_data, filename="assets/ch_re_data.csv")
     logger.debug("%s", "Pulling OWID data")
-    owid_data = pd.read_csv(url_owid)
+    download_file(url_owid, filename="assets/owid_data.csv")
     logger.debug("%s", "Pulling policies")
-    policies = pd.read_csv(url_policies)
+    download_file(url_policies, filename="assets/policies.csv")
 
     logger.debug("%s", "------Loading is completed ------")
-
-    # Saving to file
-    save_to_file("apple_mobility", apple_mobility)
-    save_to_file("ch_lockdown_data", ch_lockdown_data)
-    save_to_file("ch_re_data", ch_re_data)
-    save_to_file("owid_data", owid_data)
-    save_to_file("policies", policies)
-    logger.debug("%s", "saved to cache!")
-
-    return apple_mobility, ch_lockdown_data, ch_re_data, owid_data, policies
 
 
 def get_cached_data() -> tuple[pd.DataFrame, ...]:
     try:
         logger.debug("%s", "Reading from cache...")
-        apple_mobility = read_from_file("apple_mobility")
-        ch_lockdown_data = read_from_file("ch_lockdown_data")
-        ch_re_data = read_from_file("ch_re_data")
-        owid_data = read_from_file("owid_data")
-        policies = read_from_file("policies")
+        apple_mobility = pd.read_csv("assets/apple_mobility.csv")
+        ch_lockdown_data = pd.read_csv("assets/ch_lockdown_data.csv")
+        ch_re_data = pd.read_csv("assets/ch_re_data.csv")
+        owid_data = pd.read_csv("assets/owid_data.csv")
+        policies = pd.read_csv("assets/policies.csv")
     except FileNotFoundError:
-        apple_mobility, ch_lockdown_data, ch_re_data, owid_data, policies = get_new_data()
+        (
+            apple_mobility,
+            ch_lockdown_data,
+            ch_re_data,
+            owid_data,
+            policies,
+        ) = get_new_data()
         get_cached_data()
     return apple_mobility, ch_lockdown_data, ch_re_data, owid_data, policies
 
@@ -99,22 +115,6 @@ def get_re_data_url() -> str:
             download_url = resource["download_url"]
             logger.info("%s", f"Download URL for R_e data: {download_url}")
             return download_url
-
-
-def save_to_file(name, data) -> None:
-    with open(f"assets/{name}.dat", "wb") as file:
-        logger.debug("%s", f"Saving to file {file.name}")
-        # It is reasonable to assume there is no malicious data,
-        # as all pickled data is created by this function
-        pickle.dump(data, file)  # nosec
-
-
-def read_from_file(name) -> pd.DataFrame:
-    with open(f"assets/{name}.dat", "rb") as file:
-        logger.debug("%s", f"Reading from file {file.name}")
-        # It is reasonable to assume there is no malicious data,
-        # as all pickled data is created by the function save_to_file
-        return pickle.load(file)  # nosec
 
 
 # Get logger for main level, if this is is run as main, its properties will
