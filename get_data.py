@@ -13,13 +13,12 @@ import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from scipy.stats.stats import pearsonr
 
 import refresh_data
 from config import OPTIONS_SET_1
 
 plt.style.use("seaborn-poster")
-random.seed(19)  # 19 for Covid-19 :P
+random.seed(24)
 
 logger = logging.getLogger("__main__")
 
@@ -69,23 +68,14 @@ def interp_nans(x: list[float], left=None, right=None, period=None) -> list[floa
     return [rround(i, 1) for i in lst]
 
 
-FUNCS = []
-
-
-def cache_funcs(func):
-    def inner():
-        FUNCS.append(func)
-    return inner
-
-
 class ColorHandler:
-    cmap_strong = matplotlib.cm.get_cmap("Set1")
+    cmap_strong = matplotlib.cm.get_cmap("hsv")
     cmap_light = matplotlib.cm.get_cmap("Set3")
     colors = {}
 
     @staticmethod
     def get_color(name: str = "None", strong: bool = True):
-        logger.debug("%s", f"{name = }, {strong}")
+        logger.debug("%s", f"{name = }, {strong = }")
         try:
             return ColorHandler.colors[name]
         except KeyError:
@@ -96,7 +86,7 @@ class ColorHandler:
                 color = ColorHandler.cmap_light(rand)
 
             ColorHandler.colors[name] = color
-            logger.debug("%s", f"Creating new color {color}")
+            logger.debug("%s", f"Creating new {color = }")
             return color
 
 
@@ -148,8 +138,8 @@ class Data:
         self.policies_for_country = Data.policies[
             Data.policies.CountryName == self.capitalized_country
         ]
-        self.policies_for_country = Data.policies[
-            Data.policies.CountryName == self.capitalized_country
+        self.policies_for_country = self.policies_for_country[
+            Data.policies.Jurisdiction == "NAT_TOTAL"
         ]
 
         self.owid_data_for_country = Data.owid_data[
@@ -320,8 +310,6 @@ class PlotHandler:
                 )
 
     def show_plot(self, exit_after=False):
-        for func in FUNCS:
-            func()
         handles, labels = AxisHandler.get_legends()
         PlotHandler.plot.legend(handles, labels, loc="best")
         PlotHandler.plot.show()
@@ -334,6 +322,7 @@ class PlotHandler:
             axis.plot(
                 self.data[i].policies_for_country.StringencyIndex.to_list(),
                 label=f"Stringency Index for {self.data[i].capitalized_country}",
+                color=ColorHandler.get_color(f"Stringency_{self.data[i].capitalized_country}")
             )
 
     def plot_traffic_data(self, detailed=False):
@@ -401,7 +390,6 @@ class PlotHandler:
     def plot_lockdown_data(self):
         logger.debug("%s", "Plotting lockdown data")
         axis = AxisHandler.get_axis(name="lockdown_data")
-        axis.set_yticks([])  # this needs no ticks
         axis.plot(
             self.data[PlotHandler._current].dates_owid,
             [0 for _ in range(len(self.data[PlotHandler._current].dates_owid))],
@@ -414,12 +402,11 @@ class PlotHandler:
             ind = 0
             for date in self.data[PlotHandler._current].dates_as_str:
                 if str(date) in list(Data.ChData.lockdown_data.Datum):
-                    i = list(Data.ChData.lockdown_data.Datum).index(date)
                     if Data.ChData.lockdown_data.Kategorisierung[ind] == "Ausweitung":
-                        ausweitungen.append(date)
+                        ausweitungen += [date]
                     elif Data.ChData.lockdown_data.Kategorisierung[ind] == "Lockerung":
-                        lockerungen.append(date)
-                    dates.append(date)
+                        lockerungen += [date]
+                    dates += [date]
                     ind += 1
             PlotHandler.plot.vlines(
                 x=ausweitungen,
@@ -446,22 +433,8 @@ class PlotHandler:
                     rotation=90,
                     verticalalignment="top",
                 )
-            else:
-                logger.warn("No lockdown data available for this country")
-
-    def log_pearson_constant(self):
-        # Calculate pearson const.
-        # TODO
-        n_traffic_data = moving_average(
-            self.data[PlotHandler._current].avg_traffic_data, 50
-        )
-
-        n_daily_incidence = moving_average(
-            self.data[PlotHandler._current].cases_for_country, 50
-        )
-        logger.debug(
-            "%s", f"Pearson Constant: {pearsonr(n_traffic_data[2:], n_daily_incidence)}"
-        )
+        else:
+            logger.warn("No lockdown data available for this country")
 
 
 if __name__ == "__main__":
