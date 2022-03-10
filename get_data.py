@@ -95,6 +95,13 @@ class Data:
     This Class handles all data
     """
 
+    start_date = datetime(2020, 1, 1).date()
+    end_date = datetime.today().date()
+    delta = end_date - start_date
+
+    dates = [(datetime(2020, 1, 1).date() + timedelta(days=i)) for i in range(delta.days)]
+    dates_as_str = [str(date) for date in dates]
+
     class ChData:
         """
         Subclass for swiss data
@@ -164,13 +171,6 @@ class Data:
         ]
         self.data_x = self.apple_mobility.columns.to_list()[6:]
 
-        start_date = datetime(2020, 1, 1).date()
-        end_date = datetime.today().date()
-        delta = end_date - start_date
-
-        self.dates = [(start_date + timedelta(days=i)) for i in range(delta.days)]
-        self.dates_as_str = [str(date) for date in self.dates]
-
         # Depends on datasets_as_xy
         self.avg_traffic_data = moving_average(
             [sum(e) / len(e) for e in zip(*self.datasets_as_xy)]
@@ -202,7 +202,7 @@ class AxisHandler:
             new_ax = list(AxisHandler._axes.values())[-1].twinx()
             new_ax.set_ylim(ymin, ymax)
             AxisHandler._axes[name] = new_ax
-            return new_ax
+            return AxisHandler._axes[name]
 
     @staticmethod
     def get_legends() -> tuple[list[matplotlib.lines.Line2D], list[str]]:
@@ -241,7 +241,7 @@ class PlotHandler:
             ticks=[
                 i * 50
                 for i in range(
-                    int(len(self.data[PlotHandler._current].dates_owid)) % 100
+                    int(len(Data.dates)) % 100
                 )
             ],
         )
