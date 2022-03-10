@@ -1,4 +1,6 @@
 #!/bin/python
+import warnings
+warnings.filterwarnings("ignore")
 
 from dataclasses import dataclass
 import json
