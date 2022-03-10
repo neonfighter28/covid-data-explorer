@@ -21,7 +21,7 @@ def download_file(url, filename="None"):
                 fp.write(chunk)
     except KeyError:
         with open(filename, "wb") as fp, requests.get(url, stream=True) as req:
-            for chunk in req.iter_content(chunk_size=chunk_size):
+            for chunk in tqdm.tqdm(req.iter_content(chunk_size=chunk_size), desc=filename, leave=True):
                 fp.write(chunk)
 
 
@@ -37,7 +37,7 @@ def get_new_data() -> tuple[pd.DataFrame, ...]:
     logger.info("%s", "------   Pulling data...   ------")
 
     logger.debug("%s", "Pulling mobility data...")
-    download_file(url_apple_mobility_data, filename="apple_mobility.csv")
+    download_file(url_apple_mobility_data, filename="assets/apple_mobility.csv")
     logger.info("%s", "Pulling lockdown data...")
     download_file(url_ch_cov_markers, filename="assets/ch_lockdown_data.csv")
     logger.debug("%s", "Pulling R_e data")
