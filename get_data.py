@@ -45,20 +45,18 @@ def average(num):
 
 def moving_average(data, window_size=7):
     return [
-        np.mean(data[i : i + window_size])
-        if i + window_size < len(data)
-        else np.mean(data[i : len(data)])
+        np.mean(data[i : i + window_size]) if i + window_size < len(data) else np.mean(data[i : len(data)])
         for i in range(len(data))
     ]
 
 
-def interp_nans(x: list[float], left=None, right=None, period=None) -> list[float]:
+def interp_nans(data: list[float], left=None, right=None, period=None) -> list[float]:
     # Very resource intensive
     lst = list(
         np.interp(
-            x=list(range(len(x))),
-            xp=[i for i, yi in enumerate(x) if np.isfinite(yi)],
-            fp=[yi for yi in x if np.isfinite(yi)],
+            x=list(range(len(data))),
+            xp=[i for i, yi in enumerate(data) if np.isfinite(yi)],
+            fp=[yi for yi in data if np.isfinite(yi)],
             left=left,
             right=right,
             period=period,
@@ -69,25 +67,36 @@ def interp_nans(x: list[float], left=None, right=None, period=None) -> list[floa
 
 
 class ColorHandler:
+    """class ColorHandler handles all colors for this module."""
+
     cmap_strong = matplotlib.cm.get_cmap("hsv")
-    cmap_light = matplotlib.cm.get_cmap("Set3")
+    cmap_light = matplotlib.cm.get_cmap("Pastel1")
     colors = {}
 
     @staticmethod
     def get_color(name: str = "None", strong: bool = True):
+        """Returns a color for each call and indexes them to dictionaries so they can be recalled later on
+
+        Args:
+            name (str, optional): Name for the color. Defaults to "None".
+            strong (bool, optional): Whether it should be a strong color. Defaults to True.
+
+        Returns:
+            tuple: Tuple containing the color values
+        """
         logger.debug("%s", f"{name = }, {strong = }")
+
         try:
+            logger.debug("%s", f"Returning existing color {name}, {ColorHandler.colors[name]}")
             return ColorHandler.colors[name]
         except KeyError:
-            rand = random.randint(0, 100)
             if strong:
-                color = ColorHandler.cmap_strong(rand)
+                color = ColorHandler.cmap_strong(random.random())
             else:
-                color = ColorHandler.cmap_light(rand)
-
+                color = ColorHandler.cmap_light(random.random())
+            logger.debug("%s", f"Creating new {color = }, {strong = }")
             ColorHandler.colors[name] = color
-            logger.debug("%s", f"Creating new {color = }")
-            return color
+            return ColorHandler.colors[name]
 
 
 class Data:
@@ -95,9 +104,7 @@ class Data:
     This Class handles all data
     """
 
-    start_date = datetime(2020, 1, 1).date()
-    end_date = datetime.today().date()
-    delta = end_date - start_date
+    delta = datetime.today().date() - datetime(2020, 1, 1).date()
 
     dates = [(datetime(2020, 1, 1).date() + timedelta(days=i)) for i in range(delta.days)]
     dates_as_str = [str(date) for date in dates]
@@ -115,17 +122,9 @@ class Data:
         re_dates: list[str]
         lockdown_data: pd.DataFrame
 
-    (
-        apple_mobility,
-        ch_lockdown_data,
-        ch_re_data,
-        owid_data,
-        policies,
-    ) = refresh_data.get_cached_data()
+    (apple_mobility, ch_lockdown_data, ch_re_data, owid_data, policies) = refresh_data.get_cached_data()
 
-    ChData.lockdown_data = ch_lockdown_data[
-        ch_lockdown_data.Kategorisierung != "Ferien"
-    ]
+    ChData.lockdown_data = ch_lockdown_data[ch_lockdown_data.Kategorisierung != "Ferien"]
 
     ch_re_data = ch_re_data.loc[ch_re_data["geoRegion"] == "CH"]
     ChData.re_dates = ch_re_data.date.to_list()
@@ -142,39 +141,24 @@ class Data:
 
         self.capitalized_country = self.country[:1].upper() + self.country[1:]
         logger.debug("%s", f"{self.capitalized_country = }")
-        self.policies_for_country = Data.policies[
-            Data.policies.CountryName == self.capitalized_country
-        ]
-        self.policies_for_country = self.policies_for_country[
-            Data.policies.Jurisdiction == "NAT_TOTAL"
-        ]
+        self.policies_for_country = Data.policies[Data.policies.CountryName == self.capitalized_country]
+        self.policies_for_country = self.policies_for_country[Data.policies.Jurisdiction == "NAT_TOTAL"]
 
-        self.owid_data_for_country = Data.owid_data[
-            Data.owid_data.location == self.capitalized_country
-        ]
-        self.cases_for_country = self.owid_data_for_country.new_cases.fillna(
-            0
-        ).to_list()
+        self.owid_data_for_country = Data.owid_data[Data.owid_data.location == self.capitalized_country]
+        self.cases_for_country = self.owid_data_for_country.new_cases.fillna(0).to_list()
         self.dates_owid = self.owid_data_for_country.date.to_list()
 
-        self.re_value_other = Data.owid_data[
-            Data.owid_data.location == self.capitalized_country
-        ]
+        self.re_value_other = Data.owid_data[Data.owid_data.location == self.capitalized_country]
         self.re_value_other = self.re_value_other.reproduction_rate.to_list()
 
-        self.traffic_data_for_country = self.apple_mobility[
-            self.apple_mobility.region == self.capitalized_country
-        ]
+        self.traffic_data_for_country = self.apple_mobility[self.apple_mobility.region == self.capitalized_country]
         self.datasets_as_xy = [
-            [item for index, item in enumerate(row) if index > 6]
-            for row in self.traffic_data_for_country.itertuples()
+            [item for index, item in enumerate(row) if index > 6] for row in self.traffic_data_for_country.itertuples()
         ]
         self.data_x = self.apple_mobility.columns.to_list()[6:]
 
         # Depends on datasets_as_xy
-        self.avg_traffic_data = moving_average(
-            [sum(e) / len(e) for e in zip(*self.datasets_as_xy)]
-        )
+        self.avg_traffic_data = moving_average([sum(e) / len(e) for e in zip(*self.datasets_as_xy)])
 
 
 class AxisHandler:
@@ -187,7 +171,7 @@ class AxisHandler:
     @staticmethod
     def get_axis(name: str = None, ymin: int = None, ymax: int = None) -> plt.Axes:
         if not name:
-            logger.warn("%s", "No name supplied to get_axis, using UUID...")
+            logger.warning("%s", "No name supplied to get_axis, using UUID...")
             name = uuid.uuid4()
         logger.debug("%s", f"Getting axis for {name = }")
         try:
@@ -195,9 +179,8 @@ class AxisHandler:
         except KeyError:
             # If no axis exists yet
             if not AxisHandler._axes:
-                axis = PlotHandler.plot.gca()
-                AxisHandler._axes[name] = axis
-                return axis
+                AxisHandler._axes[name] = PlotHandler.plot.gca()
+                return AxisHandler._axes[name]
 
             new_ax = list(AxisHandler._axes.values())[-1].twinx()
             new_ax.set_ylim(ymin, ymax)
@@ -221,9 +204,9 @@ class PlotHandler:
 
     plot = None
     _current = 0
-    countries: int
+    countries: int = 0
 
-    def __init__(self, country=[]):
+    def __init__(self, country=None):
         self.data = [Data(country=c) for c in country]
 
         PlotHandler.countries = len(country)
@@ -235,16 +218,7 @@ class PlotHandler:
         self.formatted = False
 
         PlotHandler.plot.xlabel("Days Since 1/22/2020", size=15)
-        PlotHandler.plot.xticks(
-            size=10,
-            rotation=90,
-            ticks=[
-                i * 50
-                for i in range(
-                    int(len(Data.dates)) % 100
-                )
-            ],
-        )
+        PlotHandler.plot.xticks(size=10, rotation=90, ticks=[i * 50 for i in range(int(len(Data.dates_as_str)) % 100)])
 
     def plot_arbitrary_values(self, value: str) -> NotImplemented:
         if value not in OPTIONS_SET_1:  # Value needs to be a datarow of the dataset
@@ -270,46 +244,28 @@ class PlotHandler:
             axis.plot(
                 self.data[i].dates_owid,
                 moving_average(self.data[i].cases_for_country),
-                color=ColorHandler.get_color(
-                    f"cases_{self.data[i].capitalized_country}{i}"
-                ),
+                color=ColorHandler.get_color(f"cases_{self.data[i].capitalized_country}{i}"),
                 label=f"Incidence {self.data[i].capitalized_country}, moving average",
             )
-        axis.grid(
-            color=ColorHandler.get_color(f"cases_{self.data[i].capitalized_country}"),
-            axis="y",
-            alpha=0.1,
-        )
+        axis.grid(color=ColorHandler.get_color(f"cases_{self.data[i].capitalized_country}"), axis="y", alpha=0.1)
 
     def plot_re_data(self):
         axis = AxisHandler.get_axis(name="re_data", ymin=0, ymax=2)
         for i in range(PlotHandler.countries):
             if self.data[i].country == "switzerland":
-                axis.plot(
-                    Data.ChData.re_mean,
-                    label="Daily Reproduction Value smoothed for Switzerland",
-                )
+                axis.plot(Data.ChData.re_mean, label="Daily Reproduction Value smoothed for Switzerland")
                 axis.grid(color="grey", axis="y", alpha=0.5)
 
-                axis.fill_between(
-                    Data.ChData.re_dates,
-                    Data.ChData.re_low,
-                    Data.ChData.re_mean,
-                    alpha=0.5,
-                )
-                axis.fill_between(
-                    Data.ChData.re_dates,
-                    Data.ChData.re_high,
-                    Data.ChData.re_mean,
-                    alpha=0.5,
-                )
+                axis.fill_between(Data.ChData.re_dates, Data.ChData.re_low, Data.ChData.re_mean, alpha=0.5)
+                axis.fill_between(Data.ChData.re_dates, Data.ChData.re_high, Data.ChData.re_mean, alpha=0.5)
             else:
                 axis.plot(
                     self.data[i].re_value_other,
                     label=f"Daily Reproduction Value smoothed for {self.data[i].capitalized_country}",
                 )
 
-    def show_plot(self, exit_after=False):
+    @staticmethod
+    def show_plot(exit_after=False):
         handles, labels = AxisHandler.get_legends()
         PlotHandler.plot.legend(handles, labels, loc="best")
         PlotHandler.plot.show()
@@ -322,7 +278,7 @@ class PlotHandler:
             axis.plot(
                 self.data[i].policies_for_country.StringencyIndex.to_list(),
                 label=f"Stringency Index for {self.data[i].capitalized_country}",
-                color=ColorHandler.get_color(f"Stringency_{self.data[i].capitalized_country}")
+                color=ColorHandler.get_color(f"Stringency_{self.data[i].capitalized_country}"),
             )
 
     def plot_traffic_data(self, detailed=False):
@@ -334,9 +290,7 @@ class PlotHandler:
                 for index, data_y in enumerate(self.data[i].datasets_as_xy):
                     data_y = interp_nans(data_y)
                     colors = [
-                        ColorHandler.get_color(
-                            f"{i}{index}{self.data[i].capitalized_country}", strong=False
-                        )
+                        ColorHandler.get_color(f"{i}{index}{self.data[i].capitalized_country}", strong=False)
                         for _ in range(3)
                     ]
                     match index:
@@ -372,20 +326,17 @@ class PlotHandler:
                                 color="black",
                                 label="unknown datapoint",
                             )
-            axis.set_ylabel(
-                " Increase of traffic routing requests in %, baseline at 100", size=20
-            )
+            axis.set_ylabel(" Increase of traffic routing requests in %, baseline at 100", size=20)
             axis.plot(
                 self.data[i].data_x,
                 interp_nans(self.data[i].avg_traffic_data),
-                color=ColorHandler.get_color(
-                    f"mob_data_avg_{self.data[i].capitalized_country}"
-                ),
+                color=ColorHandler.get_color(f"mob_data_avg_{self.data[i].capitalized_country}"),
                 label=f"Average mobility data [{self.data[i].capitalized_country}]",
             )
 
-    def _plot_traffic_data(self, axis, x, y, **kwargs):
-        axis.plot(x, moving_average(y), alpha=0.5, **kwargs)
+    @staticmethod
+    def _plot_traffic_data(axis, x_ax, y_ax, **kwargs):
+        axis.plot(x_ax, moving_average(y_ax), alpha=0.5, **kwargs)
 
     def plot_lockdown_data(self):
         logger.debug("%s", "Plotting lockdown data")
@@ -422,19 +373,17 @@ class PlotHandler:
                 color="green",
                 linestyles="dashed",
             )
-            for i, x in enumerate(dates):
-                t = self.data[
-                    PlotHandler._current
-                ].ch_lockdown_data.Beschreibung.to_list()[i]
+            for i, date in enumerate(dates):
+                description = self.data[PlotHandler._current].ch_lockdown_data.Beschreibung.to_list()[i]
                 plt.text(
-                    x,
+                    date,
                     max(self.data[PlotHandler._current].cases_for_country),
-                    t,
+                    description,
                     rotation=90,
                     verticalalignment="top",
                 )
         else:
-            logger.warn("No lockdown data available for this country")
+            logger.warning("No lockdown data available for this country")
 
 
 if __name__ == "__main__":
